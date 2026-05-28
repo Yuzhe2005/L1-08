@@ -1,0 +1,18 @@
+command: C:\Users\dwang\AppData\Local\Programs\Python\Python311\python.exe D:\桌面\Rigol\L1-08_sim\H1_full_combined_random_generator.py
+
+[stdout]
+run_name: h1_full_combined_random_20260528_022804
+h1_seed: 1366789340
+data_folder: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_022804
+results_folder: D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_022804
+summary_json: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_022804\run_summary.json
+csv_count: 3
+plot_count: 2
+magnitude_combined_ripple_pp_db: 0.634547
+phase_combined_range_rad: -27.052648 to -21.092343
+together_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_022804\together.csv
+saved_plots:
+  D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_022804\magnitude_combined_magnitude.png
+  D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_022804\phase_combined_phase.png
+
+[stderr]

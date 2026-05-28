@@ -1,0 +1,10 @@
+.tools/
+.venv/
+**/.venv/
+**/__pycache__/
+**/.matplotlib/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+Thumbs.db

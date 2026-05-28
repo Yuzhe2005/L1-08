@@ -1,0 +1,23 @@
+command: C:\Users\dwang\AppData\Local\Programs\Python\Python311\python.exe D:\桌面\Rigol\L1-08_sim\L1_08_qam_evm_sim.py --run-dir D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_022816
+
+[stdout]
+run_dir: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_022816
+results_dir: D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_022816
+summary_json: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_022816\run_summary.json
+fs_hz: 12000000000
+samples: 65536
+qam_order: 64
+qam_bin_count: 4915
+freq_min_hz: 3550048828
+freq_max_hz: 4449829102
+after_h1_evm_percent: 7.742610
+after_float_fir_evm_percent: 7.403471
+after_fixed_fir_evm_percent: 7.403501
+after_h1_magnitude_only_evm_percent: 2.214327
+after_float_fir_magnitude_only_evm_percent: 0.155311
+after_fixed_fir_magnitude_only_evm_percent: 0.161648
+qam_evm_summary_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_022816\qam_evm_summary.csv
+qam_constellation_points_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_022816\qam_constellation_points.csv
+plot: D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_022816\l1_08_qam_evm.png
+
+[stderr]

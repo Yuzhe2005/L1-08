@@ -1,0 +1,15 @@
+command: C:\Users\dwang\AppData\Local\Programs\Python\Python311\python.exe D:\桌面\Rigol\L1-08_sim\H2_target_generator.py --input-csv D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\magnitude_combined.csv
+
+[stdout]
+input_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\magnitude_combined.csv
+output_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\h2_target.csv
+plot: D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_023615\h2_target.png
+summary_json: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\run_summary.json
+points: 1001
+f_min_hz: 3500000000
+f_max_hz: 4500000000
+h1_ripple_before_db: 0.445925
+h1_plus_h2_target_ripple_db: 0.000000
+reference_gain_db: 0.000000
+
+[stderr]

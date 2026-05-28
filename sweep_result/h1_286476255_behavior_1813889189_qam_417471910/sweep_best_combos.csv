@@ -1,0 +1,9 @@
+criterion,combo_folder,tap_num,regularization,fixed_format,fixed_saturation_count,fixed_dense_ripple_db,behavior_fixed_ripple_db,qam_fixed_magnitude_only_evm_percent,max_abs_coeff
+best_fixed_dense,tap096_reg3em04_q4_12,96,0.0003,Q4.12,0,0.141576630,0.137203314,0.271330959,0.283193668
+best_fixed_dense_unsaturated,tap096_reg3em04_q4_12,96,0.0003,Q4.12,0,0.141576630,0.137203314,0.271330959,0.283193668
+best_behavior_fixed,tap096_reg3em04_q4_12,96,0.0003,Q4.12,0,0.141576630,0.137203314,0.271330959,0.283193668
+best_behavior_fixed_unsaturated,tap096_reg3em04_q4_12,96,0.0003,Q4.12,0,0.141576630,0.137203314,0.271330959,0.283193668
+best_qam_fixed,tap096_reg1em04_q2_14,96,0.0001,Q2.14,0,0.144506725,0.140658464,0.263561586,0.388628526
+best_qam_fixed_unsaturated,tap096_reg1em04_q2_14,96,0.0001,Q2.14,0,0.144506725,0.140658464,0.263561586,0.388628526
+lowest_tap_dense_pass,tap064_reg1em04_q4_12,64,0.0001,Q4.12,0,0.190804575,0.178577321,0.377055193,1.346926926
+lowest_tap_behavior_pass,tap064_reg1em04_q4_12,64,0.0001,Q4.12,0,0.190804575,0.178577321,0.377055193,1.346926926

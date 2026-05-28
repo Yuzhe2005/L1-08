@@ -1,0 +1,26 @@
+command: C:\Users\dwang\AppData\Local\Programs\Python\Python311\python.exe D:\桌面\Rigol\L1-08_sim\L1_08_behavior_sim.py --run-dir D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615
+
+[stdout]
+run_dir: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615
+results_dir: D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_023615
+summary_json: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\run_summary.json
+fs_hz: 12000000000
+measurement_samples: 65536
+settle_samples: 256
+tone_count: 51
+tone_min_hz: 3550048828
+tone_max_hz: 4449829102
+ripple_after_h1_db: 0.388059
+ripple_after_fir_db: 0.043740
+ripple_after_fir_fixed_db: 0.044133
+meets_0p1db_target: True
+meets_0p1db_target_fixed: True
+input_iq_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\input_iq.csv
+after_h1_iq_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\after_h1_iq.csv
+after_fir_iq_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\after_fir_iq.csv
+after_fir_fixed_iq_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\after_fir_fixed_iq.csv
+tone_amplitude_csv: D:\桌面\Rigol\L1-08_sim\data\h1_full_combined_random_20260528_023615\tone_amplitude_before_after.csv
+plot: D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_023615\l1_08_behavior_multitone.png
+phase_combined_plot: D:\桌面\Rigol\L1-08_sim\results\h1_full_combined_random_20260528_023615\l1_08_behavior_phase_combined.png
+
+[stderr]

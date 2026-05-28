@@ -1,0 +1,28 @@
+{
+  "combo": {
+    "tap_num": 96,
+    "regularization": 0.0003,
+    "coeff_total_bits": 16,
+    "coeff_frac_bits": 12,
+    "format": "Q4.12"
+  },
+  "source_run_dir": "D:\\桌面\\Rigol\\L1-08_sim\\data\\h1_full_combined_random_20260528_023306",
+  "source_graph_dir": "D:\\桌面\\Rigol\\L1-08_sim\\results\\h1_full_combined_random_20260528_023306",
+  "copied_data_dir": "D:\\桌面\\Rigol\\sweep_result\\h1_1366789340_behavior_1224877734_qam_1756070480\\tap096_reg3em04_q4_12\\data",
+  "copied_graph_dir": "D:\\桌面\\Rigol\\sweep_result\\h1_1366789340_behavior_1224877734_qam_1756070480\\tap096_reg3em04_q4_12\\graph",
+  "metrics": {
+    "run_name": "h1_full_combined_random_20260528_023306",
+    "h1_ripple_db": 0.6345468328855539,
+    "float_dense_ripple_db": 0.06771417134146876,
+    "float_dense_pass_0p1db": true,
+    "max_abs_coeff": 0.26030053359738853,
+    "fixed_saturation_count": 0,
+    "fixed_dense_ripple_db": 0.07395195276418479,
+    "fixed_dense_pass_0p1db": true,
+    "behavior_float_ripple_db": 0.04642665245709825,
+    "behavior_fixed_ripple_db": 0.04478614243823879,
+    "behavior_fixed_pass_0p1db": true,
+    "qam_float_magnitude_only_evm_percent": 0.1055865916051381,
+    "qam_fixed_magnitude_only_evm_percent": 0.12397951701560714
+  }
+}
