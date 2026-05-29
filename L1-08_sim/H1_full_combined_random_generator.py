@@ -21,7 +21,12 @@ from phase.H1_local_phase_distortion_random_generator import (
 from phase.H1_phase_noise_random_generator import H1PhaseNoiseRandomGenerator, PhaseNoiseRandomConfig
 from phase.H1_phase_ripple_random_generator import H1PhaseRippleRandomGenerator, PhaseRippleRandomConfig
 from phase.H_phase_plotter import HPhasePlotter
-from L1_08_config import get_active_config_value, load_l1_08_config
+from L1_08_config import (
+    get_active_config,
+    get_active_config_value,
+    get_selected_profile_name,
+    get_selected_seed_case_name,
+)
 from L1_08_run_summary import update_run_summary
 
 
@@ -30,6 +35,7 @@ class FullCombinedH1Run:
     run_name: str
     data_dir: Path
     results_dir: Path
+    profile: str | None
     magnitude_features: list[H1]
     phase_features: list[H1]
     magnitude_combined: H1
@@ -38,9 +44,10 @@ class FullCombinedH1Run:
 
 
 class H1FullCombinedRandomGenerator:
-    def __init__(self, seed: int | None = None) -> None:
+    def __init__(self, seed: int | None = None, profile: str | None = None) -> None:
+        self.profile = profile if profile is not None else get_selected_profile_name()
         self.rng = np.random.default_rng(seed)
-        self.h1_random_model = _load_h1_random_model_config()
+        self.h1_random_model = _load_h1_random_model_config(self.profile)
         self.grid_config = _make_frequency_grid_config(self.h1_random_model)
 
     def generate(self, run_name: str | None = None) -> FullCombinedH1Run:
@@ -94,6 +101,7 @@ class H1FullCombinedRandomGenerator:
             run_name=run_name,
             data_dir=data_dir,
             results_dir=results_dir,
+            profile=self.profile,
             magnitude_features=magnitude_features,
             phase_features=phase_features,
             magnitude_combined=magnitude_combined,
@@ -148,10 +156,8 @@ class H1FullCombinedRandomGenerator:
         )
 
 
-def _load_h1_random_model_config() -> dict[str, Any]:
-    active = load_l1_08_config().get("active", {})
-    if not isinstance(active, dict):
-        return {}
+def _load_h1_random_model_config(profile: str | None = None) -> dict[str, Any]:
+    active = get_active_config(profile_name=profile)
     model = active.get("h1_random_model", {})
     return model if isinstance(model, dict) else {}
 
@@ -218,9 +224,11 @@ def plot_run(run: FullCombinedH1Run) -> list[Path]:
 
 
 if __name__ == "__main__":
-    h1_seed_config = get_active_config_value("h1", "seed", None)
+    profile_name = get_selected_profile_name()
+    seed_case_name = get_selected_seed_case_name()
+    h1_seed_config = get_active_config_value("h1", "seed", None, profile_name=profile_name)
     h1_seed = None if h1_seed_config is None else int(h1_seed_config)
-    generator = H1FullCombinedRandomGenerator(seed=h1_seed)
+    generator = H1FullCombinedRandomGenerator(seed=h1_seed, profile=profile_name)
     run = generator.generate()
     plot_paths = plot_run(run)
     summary_path = update_run_summary(
@@ -228,6 +236,8 @@ if __name__ == "__main__":
         "h1_generation",
         {
             "run_name": run.run_name,
+            "profile": run.profile or "active",
+            "seed_case": seed_case_name or "active",
             "seed": h1_seed,
             "data_dir": run.data_dir,
             "results_dir": run.results_dir,
@@ -265,6 +275,8 @@ if __name__ == "__main__":
     )
 
     print(f"run_name: {run.run_name}")
+    print(f"profile: {run.profile or 'active'}")
+    print(f"seed_case: {seed_case_name or 'active'}")
     print(f"h1_seed: {h1_seed}")
     print(f"data_folder: {run.data_dir}")
     print(f"results_folder: {run.results_dir}")

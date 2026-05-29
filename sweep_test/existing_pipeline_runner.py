@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -42,6 +43,7 @@ class ExistingPipelineComboRunner:
             "01_h1_generation",
             [self._python(), self._script("H1_full_combined_random_generator.py")],
             logs_dir,
+            combo,
         )
         source_run_dir = self._latest_run_dir()
 
@@ -54,6 +56,7 @@ class ExistingPipelineComboRunner:
                 str(source_run_dir / "magnitude_combined.csv"),
             ],
             logs_dir,
+            combo,
         )
         self._run_stage(
             "03_h2_fir_design",
@@ -68,6 +71,7 @@ class ExistingPipelineComboRunner:
                 f"{combo.regularization:.12g}",
             ],
             logs_dir,
+            combo,
         )
         self._run_stage(
             "04_fixed_point_quantization",
@@ -84,6 +88,7 @@ class ExistingPipelineComboRunner:
                 str(combo.fixed_point.frac_bits),
             ],
             logs_dir,
+            combo,
         )
         if self.settings.stages.run_behavior_simulation:
             self._run_stage(
@@ -95,6 +100,7 @@ class ExistingPipelineComboRunner:
                     str(source_run_dir),
                 ],
                 logs_dir,
+                combo,
             )
         if self.settings.stages.run_qam_evm_simulation:
             self._run_stage(
@@ -106,6 +112,7 @@ class ExistingPipelineComboRunner:
                     str(source_run_dir),
                 ],
                 logs_dir,
+                combo,
             )
 
         source_graph_dir = self.settings.sim_dir / "results" / source_run_dir.name
@@ -129,10 +136,20 @@ class ExistingPipelineComboRunner:
             metrics=metrics,
         )
 
-    def _run_stage(self, stage_name: str, command: list[str], logs_dir: Path) -> None:
+    def _run_stage(self, stage_name: str, command: list[str], logs_dir: Path, combo: SweepCombo) -> None:
+        env = os.environ.copy()
+        if combo.profile:
+            env["L1_08_PROFILE"] = combo.profile
+        if combo.seed_case is not None:
+            env["L1_08_SEED_CASE"] = combo.seed_case.name
+            env["L1_08_H1_SEED"] = str(combo.seed_case.h1_seed)
+            env["L1_08_BEHAVIOR_SEED"] = str(combo.seed_case.behavior_seed)
+            env["L1_08_QAM_SEED"] = str(combo.seed_case.qam_seed)
+
         completed = subprocess.run(
             command,
             cwd=self.settings.repo_root,
+            env=env,
             text=True,
             capture_output=True,
             check=False,
@@ -140,7 +157,12 @@ class ExistingPipelineComboRunner:
 
         log_path = logs_dir / f"{stage_name}.log"
         log_path.write_text(
-            "command: " + " ".join(command) + "\n\n"
+            "profile: " + combo.profile_label + "\n"
+            + "seed_case: " + str(combo.to_dict().get("seed_case", "active")) + "\n"
+            + "h1_seed: " + str(combo.to_dict().get("h1_seed", "")) + "\n"
+            + "behavior_seed: " + str(combo.to_dict().get("behavior_seed", "")) + "\n"
+            + "qam_seed: " + str(combo.to_dict().get("qam_seed", "")) + "\n"
+            + "command: " + " ".join(command) + "\n\n"
             + "[stdout]\n"
             + completed.stdout
             + "\n[stderr]\n"
@@ -182,6 +204,11 @@ class ExistingPipelineComboRunner:
 
         return {
             "run_name": summary.get("run_name"),
+            "profile": h1.get("profile", "active"),
+            "seed_case": h1.get("seed_case"),
+            "h1_seed": h1.get("seed"),
+            "behavior_seed": behavior.get("seed"),
+            "qam_seed": qam.get("seed"),
             "h1_ripple_db": h1.get("magnitude_combined_ripple_pp_db"),
             "float_dense_ripple_db": h2.get("ripple_after_db"),
             "float_dense_pass_0p1db": h2.get("meets_0p1db_target"),
@@ -228,6 +255,11 @@ def write_sweep_summary_csv(results: list[ComboResult], output_csv: Path) -> Non
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "combo_folder",
+        "profile",
+        "seed_case",
+        "h1_seed",
+        "behavior_seed",
+        "qam_seed",
         "tap_num",
         "regularization",
         "coeff_total_bits",
@@ -254,10 +286,13 @@ def write_sweep_summary_csv(results: list[ComboResult], output_csv: Path) -> Non
         for result in results:
             row = {
                 "combo_folder": result.combo.folder_name,
-                "tap_num": result.combo.tap_num,
-                "regularization": result.combo.regularization,
-                **result.combo.fixed_point.to_dict(),
+                **result.combo.to_dict(),
                 **result.metrics,
             }
             row["fixed_format"] = row.pop("format")
+            row["profile"] = result.combo.profile_label
+            row["seed_case"] = result.combo.to_dict()["seed_case"]
+            row["h1_seed"] = result.combo.to_dict()["h1_seed"]
+            row["behavior_seed"] = result.combo.to_dict()["behavior_seed"]
+            row["qam_seed"] = result.combo.to_dict()["qam_seed"]
             writer.writerow(row)

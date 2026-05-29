@@ -8,3 +8,4 @@
 *.pyd
 .DS_Store
 Thumbs.db
+sweep_result/

@@ -1,4 +1,5 @@
 import argparse
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -34,7 +35,7 @@ STAGES = [
     PipelineStage(
         name="h2_fir_design",
         script_name="H2_fir_designer.py",
-        purpose="Fit the 64-tap real linear-phase FIR response.",
+        purpose="Fit the real linear-phase FIR response.",
     ),
     PipelineStage(
         name="fixed_point_coefficient_quantization",
@@ -56,6 +57,11 @@ STAGES = [
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the full L1-08 behavior-level simulation pipeline.")
+    parser.add_argument(
+        "--profile",
+        default=None,
+        help="Optional bandwidth/profile name from L1_08_experiment_config.json, for example bw_1g or bw_8g.",
+    )
     parser.add_argument(
         "--skip-qam-evm",
         action="store_true",
@@ -83,17 +89,24 @@ def selected_stages(args: argparse.Namespace) -> list[PipelineStage]:
     return selected
 
 
-def run_stage(stage: PipelineStage) -> None:
+def run_stage(stage: PipelineStage, profile: str | None) -> None:
     if not stage.script_path.is_file():
         raise FileNotFoundError(f"Pipeline stage script not found: {stage.script_path}")
+
+    env = os.environ.copy()
+    if profile:
+        env["L1_08_PROFILE"] = profile
 
     print(f"\n=== {stage.name} ===", flush=True)
     print(stage.purpose, flush=True)
     print(f"script: {stage.script_path}", flush=True)
+    if profile:
+        print(f"profile: {profile}", flush=True)
 
     subprocess.run(
         [sys.executable, "-u", str(stage.script_path)],
         cwd=REPO_ROOT,
+        env=env,
         check=True,
     )
 
@@ -106,10 +119,11 @@ def main() -> None:
 
     print("L1-08 full pipeline", flush=True)
     print(f"repo_root: {REPO_ROOT}", flush=True)
+    print(f"profile: {args.profile or 'active'}", flush=True)
     print(f"stage_count: {len(stages)}", flush=True)
 
     for stage in stages:
-        run_stage(stage)
+        run_stage(stage, args.profile)
 
     print("\nPipeline completed successfully.", flush=True)
 

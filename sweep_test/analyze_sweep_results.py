@@ -1,11 +1,11 @@
 import argparse
 import csv
+import os
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from sweep_config import SweepSettings
@@ -13,11 +13,24 @@ from sweep_config import SweepSettings
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent / "config.json"
 DEFAULT_TARGET_RIPPLE_DB = 0.1
+PROJECT_ROOT = Path(__file__).resolve().parent
+os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib"))
+
+import matplotlib
+
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt
 
 
 @dataclass(frozen=True)
 class SweepRow:
     combo_folder: str
+    profile: str
+    seed_case: str
+    h1_seed: int | None
+    behavior_seed: int | None
+    qam_seed: int | None
     tap_num: int
     regularization: float
     coeff_total_bits: int
@@ -98,7 +111,7 @@ def main() -> None:
 def load_summary(summary_csv: Path) -> list[SweepRow]:
     with summary_csv.open("r", newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
-        required = set(SweepRow.__dataclass_fields__)
+        required = set(SweepRow.__dataclass_fields__) - {"profile", "seed_case", "h1_seed", "behavior_seed", "qam_seed"}
         if not reader.fieldnames or not required.issubset(reader.fieldnames):
             missing = sorted(required - set(reader.fieldnames or []))
             raise ValueError(f"{summary_csv} is missing columns: {missing}")
@@ -108,6 +121,11 @@ def load_summary(summary_csv: Path) -> list[SweepRow]:
             rows.append(
                 SweepRow(
                     combo_folder=item["combo_folder"],
+                    profile=item.get("profile") or "active",
+                    seed_case=item.get("seed_case") or "active",
+                    h1_seed=parse_optional_int(item.get("h1_seed")),
+                    behavior_seed=parse_optional_int(item.get("behavior_seed")),
+                    qam_seed=parse_optional_int(item.get("qam_seed")),
                     tap_num=int(item["tap_num"]),
                     regularization=float(item["regularization"]),
                     coeff_total_bits=int(item["coeff_total_bits"]),
@@ -143,6 +161,12 @@ def parse_bool(value: str) -> bool:
     raise ValueError(f"Cannot parse bool value: {value!r}")
 
 
+def parse_optional_int(value: str | None) -> int | None:
+    if value is None or value.strip() == "":
+        return None
+    return int(value)
+
+
 def analyze_rows(rows: list[SweepRow]) -> dict[str, SweepRow]:
     unsaturated = [row for row in rows if not row.is_saturated]
     pass_fixed_dense = [row for row in rows if row.fixed_dense_pass_0p1db and not row.is_saturated]
@@ -160,7 +184,10 @@ def analyze_rows(rows: list[SweepRow]) -> dict[str, SweepRow]:
             key=lambda row: row.qam_fixed_magnitude_only_evm_percent,
         ),
         "lowest_tap_dense_pass": min(candidates_for_balanced, key=lambda row: (row.tap_num, row.fixed_dense_ripple_db)),
-        "lowest_tap_behavior_pass": min(pass_behavior or candidates_for_balanced, key=lambda row: (row.tap_num, row.behavior_fixed_ripple_db)),
+        "lowest_tap_behavior_pass": min(
+            pass_behavior or candidates_for_balanced,
+            key=lambda row: (row.tap_num, row.behavior_fixed_ripple_db),
+        ),
     }
 
 
@@ -168,6 +195,11 @@ def write_best_combos_csv(analysis: dict[str, SweepRow], output_csv: Path) -> No
     fieldnames = [
         "criterion",
         "combo_folder",
+        "profile",
+        "seed_case",
+        "h1_seed",
+        "behavior_seed",
+        "qam_seed",
         "tap_num",
         "regularization",
         "fixed_format",
@@ -188,6 +220,11 @@ def row_to_best_dict(criterion: str, row: SweepRow) -> dict[str, Any]:
     return {
         "criterion": criterion,
         "combo_folder": row.combo_folder,
+        "profile": row.profile,
+        "seed_case": row.seed_case,
+        "h1_seed": row.h1_seed,
+        "behavior_seed": row.behavior_seed,
+        "qam_seed": row.qam_seed,
         "tap_num": row.tap_num,
         "regularization": f"{row.regularization:.12g}",
         "fixed_format": row.fixed_format,
@@ -217,6 +254,9 @@ def write_group_summary_csv(rows: list[SweepRow], output_csv: Path) -> None:
 
     grouped: list[tuple[str, str, list[SweepRow]]] = []
     for group_type, key_fn in [
+        ("profile", lambda row: row.profile),
+        ("seed_case", lambda row: row.seed_case),
+        ("profile_seed_case", lambda row: profile_seed_case_label(row)),
         ("tap_num", lambda row: str(row.tap_num)),
         ("regularization", lambda row: f"{row.regularization:.12g}"),
         ("fixed_format", lambda row: row.fixed_format),
@@ -239,6 +279,37 @@ def sort_group_key(value: str) -> tuple[int, float | str]:
         return (0, float(value))
     except ValueError:
         return (1, value)
+
+
+def bandwidth_hz_from_profile(profile: str) -> float:
+    label = profile.lower().strip()
+    if label.startswith("bw_"):
+        label = label[3:]
+    if label.endswith("m"):
+        return float(label[:-1]) * 1e6
+    if label.endswith("g"):
+        return float(label[:-1]) * 1e9
+    return float("nan")
+
+
+def bandwidth_sort_key(profile: str) -> tuple[int, float | str]:
+    bandwidth_hz = bandwidth_hz_from_profile(profile)
+    if np.isfinite(bandwidth_hz):
+        return (0, bandwidth_hz)
+    return (1, profile)
+
+
+def bandwidth_label(profile: str) -> str:
+    bandwidth_hz = bandwidth_hz_from_profile(profile)
+    if not np.isfinite(bandwidth_hz):
+        return profile
+    if bandwidth_hz >= 1e9:
+        return f"{bandwidth_hz / 1e9:g} GHz"
+    return f"{bandwidth_hz / 1e6:g} MHz"
+
+
+def profile_seed_case_label(row: SweepRow) -> str:
+    return f"{row.profile}/{row.seed_case}"
 
 
 def group_summary_row(group_type: str, group_value: str, rows: list[SweepRow]) -> dict[str, Any]:
@@ -269,6 +340,9 @@ def write_plots(rows: list[SweepRow], output_dir: Path, target_ripple_db: float)
         output_dir / "sweep_behavior_ripple_by_tap.png",
         output_dir / "sweep_qam_evm_by_tap.png",
         output_dir / "sweep_saturation_and_coeff_range.png",
+        output_dir / "bandwidth_vs_fixed_dense_ripple.png",
+        output_dir / "bandwidth_vs_behavior_ripple.png",
+        output_dir / "bandwidth_vs_qam_evm.png",
     ]
 
     plot_metric_by_tap(
@@ -296,6 +370,30 @@ def write_plots(rows: list[SweepRow], output_dir: Path, target_ripple_db: float)
         target_line=None,
     )
     plot_coeff_and_saturation(rows, plot_paths[3])
+    plot_metric_by_bandwidth(
+        rows,
+        metric_name="fixed_dense_ripple_db",
+        ylabel="Best fixed dense ripple (dB)",
+        title="L1-08 bandwidth sweep fixed dense ripple",
+        output_path=plot_paths[4],
+        target_line=target_ripple_db,
+    )
+    plot_metric_by_bandwidth(
+        rows,
+        metric_name="behavior_fixed_ripple_db",
+        ylabel="Best fixed multi-tone ripple (dB)",
+        title="L1-08 bandwidth sweep behavior ripple",
+        output_path=plot_paths[5],
+        target_line=target_ripple_db,
+    )
+    plot_metric_by_bandwidth(
+        rows,
+        metric_name="qam_fixed_magnitude_only_evm_percent",
+        ylabel="Best QAM magnitude-only EVM (%)",
+        title="L1-08 bandwidth sweep QAM magnitude-only EVM",
+        output_path=plot_paths[6],
+        target_line=None,
+    )
 
     return plot_paths
 
@@ -342,6 +440,57 @@ def plot_metric_by_tap(
     plt.close(fig)
 
 
+def plot_metric_by_bandwidth(
+    rows: list[SweepRow],
+    metric_name: str,
+    ylabel: str,
+    title: str,
+    output_path: Path,
+    target_line: float | None,
+) -> None:
+    buckets: dict[str, list[SweepRow]] = defaultdict(list)
+    for row in rows:
+        buckets[row.profile].append(row)
+
+    profiles = sorted(buckets, key=bandwidth_sort_key)
+    x = np.arange(len(profiles))
+    best_rows = [min(buckets[profile], key=lambda row: getattr(row, metric_name)) for profile in profiles]
+    y = [getattr(row, metric_name) for row in best_rows]
+    colors = ["#2ca02c" if target_line is not None and value <= target_line else "#1f77b4" for value in y]
+    if target_line is None:
+        colors = ["#1f77b4" for _ in y]
+
+    fig, ax = plt.subplots(figsize=(10, 5.8))
+    ax.plot(x, y, color="#4c78a8", linewidth=1.6, alpha=0.8)
+    ax.scatter(x, y, s=85, color=colors, edgecolors="black", linewidths=0.6, zorder=3)
+
+    for x_value, y_value, row in zip(x, y, best_rows):
+        ax.annotate(
+            f"{row.seed_case}\ntap{row.tap_num} {row.fixed_format}",
+            xy=(x_value, y_value),
+            xytext=(0, 10),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8.5,
+            bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "alpha": 0.82, "edgecolor": "0.8"},
+        )
+
+    if target_line is not None:
+        ax.axhline(target_line, color="black", linestyle="--", linewidth=1.2, label=f"{target_line:g} dB target")
+        ax.legend(loc="best")
+
+    ax.set_title(title)
+    ax.set_xlabel("Bandwidth profile")
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(x)
+    ax.set_xticklabels([bandwidth_label(profile) for profile in profiles])
+    ax.grid(True, axis="y", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=160)
+    plt.close(fig)
+
+
 def regularization_offset(regularization: float) -> float:
     known = sorted({1e-4, 3e-4, 1e-3})
     if regularization in known:
@@ -380,7 +529,16 @@ def add_regularization_note(ax: Any) -> None:
 
 def plot_coeff_and_saturation(rows: list[SweepRow], output_path: Path) -> None:
     fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True)
-    sorted_rows = sorted(rows, key=lambda row: (row.tap_num, row.regularization, fixed_format_sort_key(row.fixed_format)))
+    sorted_rows = sorted(
+        rows,
+        key=lambda row: (
+            bandwidth_sort_key(row.profile),
+            row.seed_case,
+            row.tap_num,
+            row.regularization,
+            fixed_format_sort_key(row.fixed_format),
+        ),
+    )
     labels = [row.combo_folder for row in sorted_rows]
     x = np.arange(len(sorted_rows))
 
@@ -410,6 +568,8 @@ def write_report(
     plot_paths: list[Path],
     target_ripple_db: float,
 ) -> None:
+    profiles = sorted({row.profile for row in rows}, key=bandwidth_sort_key)
+    seed_cases = sorted({row.seed_case for row in rows}, key=sort_group_key)
     taps = sorted({row.tap_num for row in rows})
     regs = sorted({row.regularization for row in rows})
     formats = sorted({row.fixed_format for row in rows}, key=fixed_format_sort_key)
@@ -423,10 +583,11 @@ def write_report(
     lines.append("This report summarizes one completed L1-08 parameter sweep from `sweep_summary.csv`.")
     lines.append("")
     lines.append(f"- Total combos: `{len(rows)}`")
+    lines.append(f"- profiles: `{', '.join(profiles)}`")
+    lines.append(f"- seed cases: `{', '.join(seed_cases)}`")
     lines.append(f"- tap_num values: `{', '.join(str(item) for item in taps)}`")
     lines.append(f"- regularization values: `{', '.join(f'{item:.12g}' for item in regs)}`")
     lines.append(f"- fixed-point formats: `{', '.join(formats)}`")
-    lines.append(f"- H1 ripple before compensation: `{rows[0].h1_ripple_db:.6f} dB`")
     lines.append(f"- Ripple pass target used in this report: `{target_ripple_db:.6f} dB`")
     lines.append("")
 
@@ -448,11 +609,15 @@ def write_report(
 
     lines.append("## 3. Best Combos")
     lines.append("")
-    lines.append("| Criterion | Combo | Dense ripple (dB) | Behavior ripple (dB) | QAM mag-only EVM (%) | Saturation |")
-    lines.append("|---|---|---:|---:|---:|---:|")
+    lines.append(
+        "| Criterion | Profile | Seed case | Combo | Dense ripple (dB) | "
+        "Behavior ripple (dB) | QAM mag-only EVM (%) | Saturation |"
+    )
+    lines.append("|---|---|---|---|---:|---:|---:|---:|")
     for criterion, row in analysis.items():
         lines.append(
-            f"| {criterion} | `{row.combo_folder}` | {row.fixed_dense_ripple_db:.6f} | "
+            f"| {criterion} | {row.profile} | {row.seed_case} | `{row.combo_folder}` | "
+            f"{row.fixed_dense_ripple_db:.6f} | "
             f"{row.behavior_fixed_ripple_db:.6f} | {row.qam_fixed_magnitude_only_evm_percent:.6f} | "
             f"{row.fixed_saturation_count} |"
         )
@@ -460,25 +625,47 @@ def write_report(
 
     lines.append("## 4. Group Summary")
     lines.append("")
+    lines.append("### By Profile")
+    lines.append("")
+    append_group_table(lines, rows, lambda row: row.profile)
+    lines.append("")
+    lines.append("### By Seed Case")
+    lines.append("")
+    append_group_table(lines, rows, lambda row: row.seed_case)
+    lines.append("")
+    lines.append("### By Profile And Seed Case")
+    lines.append("")
+    append_group_table(lines, rows, profile_seed_case_label)
+    lines.append("")
     lines.append("### By Tap")
     lines.append("")
-    append_group_table(lines, rows, "tap_num", lambda row: str(row.tap_num))
+    append_group_table(lines, rows, lambda row: str(row.tap_num))
     lines.append("")
     lines.append("### By Regularization")
     lines.append("")
-    append_group_table(lines, rows, "regularization", lambda row: f"{row.regularization:.12g}")
+    append_group_table(lines, rows, lambda row: f"{row.regularization:.12g}")
     lines.append("")
     lines.append("### By Fixed-Point Format")
     lines.append("")
-    append_group_table(lines, rows, "fixed_format", lambda row: row.fixed_format)
+    append_group_table(lines, rows, lambda row: row.fixed_format)
     lines.append("")
 
-    lines.append("## 5. Interpretation")
+    lines.append("## 5. Bandwidth Sweep Result")
+    lines.append("")
+    append_bandwidth_sweep_table(lines, rows)
+    lines.append("")
+
+    lines.append("## 6. Seed Stability Result")
+    lines.append("")
+    append_seed_stability_table(lines, rows, target_ripple_db)
+    lines.append("")
+
+    lines.append("## 7. Interpretation")
     lines.append("")
     lines.extend(interpretation_lines(rows, analysis, target_ripple_db))
     lines.append("")
 
-    lines.append("## 6. Generated Files")
+    lines.append("## 8. Generated Files")
     lines.append("")
     lines.append(f"- Best combo table: `{best_csv.name}`")
     lines.append(f"- Group summary table: `{group_csv.name}`")
@@ -486,7 +673,7 @@ def write_report(
         lines.append(f"- Plot: `{path.name}`")
     lines.append("")
 
-    lines.append("## 7. Plots")
+    lines.append("## 9. Plots")
     lines.append("")
     for path in plot_paths:
         lines.append(f"![{path.stem}]({path.name})")
@@ -495,7 +682,7 @@ def write_report(
     output_md.write_text("\n".join(lines), encoding="utf-8")
 
 
-def append_group_table(lines: list[str], rows: list[SweepRow], group_name: str, key_fn: Any) -> None:
+def append_group_table(lines: list[str], rows: list[SweepRow], key_fn: Any) -> None:
     buckets: dict[str, list[SweepRow]] = defaultdict(list)
     for row in rows:
         buckets[key_fn(row)].append(row)
@@ -516,32 +703,97 @@ def append_group_table(lines: list[str], rows: list[SweepRow], group_name: str, 
         )
 
 
+def append_bandwidth_sweep_table(lines: list[str], rows: list[SweepRow]) -> None:
+    buckets: dict[str, list[SweepRow]] = defaultdict(list)
+    for row in rows:
+        buckets[row.profile].append(row)
+
+    lines.append(
+        "| Profile | Bandwidth | Best dense ripple (dB) | Dense pass | "
+        "Best behavior ripple (dB) | Behavior pass | Best QAM mag EVM (%) |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|")
+    for profile in sorted(buckets, key=bandwidth_sort_key):
+        bucket = buckets[profile]
+        best_dense = min(row.fixed_dense_ripple_db for row in bucket)
+        best_behavior = min(row.behavior_fixed_ripple_db for row in bucket)
+        best_qam = min(row.qam_fixed_magnitude_only_evm_percent for row in bucket)
+        dense_pass = sum(row.fixed_dense_pass_0p1db and not row.is_saturated for row in bucket)
+        behavior_pass = sum(row.behavior_fixed_pass_0p1db and not row.is_saturated for row in bucket)
+        lines.append(
+            f"| {profile} | {bandwidth_label(profile)} | {best_dense:.6f} | {dense_pass}/{len(bucket)} | "
+            f"{best_behavior:.6f} | {behavior_pass}/{len(bucket)} | {best_qam:.6f} |"
+        )
+
+
+def append_seed_stability_table(lines: list[str], rows: list[SweepRow], target_ripple_db: float) -> None:
+    profile_buckets: dict[str, list[SweepRow]] = defaultdict(list)
+    for row in rows:
+        profile_buckets[row.profile].append(row)
+
+    lines.append(
+        "| Profile | Bandwidth | Seed cases | Dense seed pass | Dense best/mean/worst (dB) | "
+        "Behavior seed pass | Behavior best/mean/worst (dB) | Best QAM mag EVM (%) |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|")
+
+    for profile in sorted(profile_buckets, key=bandwidth_sort_key):
+        seed_buckets: dict[str, list[SweepRow]] = defaultdict(list)
+        for row in profile_buckets[profile]:
+            seed_buckets[row.seed_case].append(row)
+
+        best_dense_by_seed = [
+            min(bucket, key=lambda row: row.fixed_dense_ripple_db)
+            for _, bucket in sorted(seed_buckets.items(), key=lambda item: sort_group_key(item[0]))
+        ]
+        best_behavior_by_seed = [
+            min(bucket, key=lambda row: row.behavior_fixed_ripple_db)
+            for _, bucket in sorted(seed_buckets.items(), key=lambda item: sort_group_key(item[0]))
+        ]
+
+        dense_values = [row.fixed_dense_ripple_db for row in best_dense_by_seed]
+        behavior_values = [row.behavior_fixed_ripple_db for row in best_behavior_by_seed]
+        dense_pass = sum(
+            row.fixed_dense_ripple_db <= target_ripple_db and not row.is_saturated
+            for row in best_dense_by_seed
+        )
+        behavior_pass = sum(
+            row.behavior_fixed_ripple_db <= target_ripple_db and not row.is_saturated
+            for row in best_behavior_by_seed
+        )
+        best_qam = min(row.qam_fixed_magnitude_only_evm_percent for row in profile_buckets[profile])
+
+        lines.append(
+            f"| {profile} | {bandwidth_label(profile)} | {len(seed_buckets)} | "
+            f"{dense_pass}/{len(seed_buckets)} | "
+            f"{min(dense_values):.6f}/{mean(dense_values):.6f}/{max(dense_values):.6f} | "
+            f"{behavior_pass}/{len(seed_buckets)} | "
+            f"{min(behavior_values):.6f}/{mean(behavior_values):.6f}/{max(behavior_values):.6f} | "
+            f"{best_qam:.6f} |"
+        )
+
+
 def interpretation_lines(rows: list[SweepRow], analysis: dict[str, SweepRow], target_ripple_db: float) -> list[str]:
     lines: list[str] = []
-    by_tap: dict[int, list[SweepRow]] = defaultdict(list)
+    by_profile: dict[str, list[SweepRow]] = defaultdict(list)
     for row in rows:
-        by_tap[row.tap_num].append(row)
+        by_profile[row.profile].append(row)
 
-    weak_taps = [
-        tap
-        for tap, bucket in by_tap.items()
-        if sum(row.fixed_dense_pass_0p1db for row in bucket) == 0
-    ]
-    strong_taps = [
-        tap
-        for tap, bucket in by_tap.items()
-        if sum(row.fixed_dense_pass_0p1db for row in bucket) == len(bucket)
-    ]
-
-    if weak_taps:
-        lines.append(
-            f"- tap_num `{', '.join(str(item) for item in sorted(weak_taps))}` did not pass dense "
-            f"`{target_ripple_db:g} dB` in this sweep. It is not a robust choice for this H1 seed."
+    for profile, bucket in sorted(by_profile.items(), key=lambda item: bandwidth_sort_key(item[0])):
+        pass_count = sum(row.fixed_dense_pass_0p1db and not row.is_saturated for row in bucket)
+        seed_buckets: dict[str, list[SweepRow]] = defaultdict(list)
+        for row in bucket:
+            seed_buckets[row.seed_case].append(row)
+        seed_pass_count = sum(
+            min(seed_rows, key=lambda row: row.fixed_dense_ripple_db).fixed_dense_ripple_db <= target_ripple_db
+            and not min(seed_rows, key=lambda row: row.fixed_dense_ripple_db).is_saturated
+            for seed_rows in seed_buckets.values()
         )
-    if strong_taps:
+        best = min(bucket, key=lambda row: row.fixed_dense_ripple_db)
         lines.append(
-            f"- tap_num `{', '.join(str(item) for item in sorted(strong_taps))}` passed dense "
-            f"`{target_ripple_db:g} dB` for every swept regularization/fixed-point format."
+            f"- Profile `{profile}`: `{pass_count} / {len(bucket)}` unsaturated dense-pass combos; "
+            f"`{seed_pass_count} / {len(seed_buckets)}` seed cases have at least one dense-pass setting; "
+            f"best dense ripple is `{best.fixed_dense_ripple_db:.6f} dB` from `{best.combo_folder}`."
         )
 
     balanced = analysis["lowest_tap_dense_pass"]
