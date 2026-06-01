@@ -90,7 +90,7 @@ class H1FullCombinedRandomGenerator:
         ]
 
         magnitude_combined = self._combine(magnitude_features, "magnitude_combined")
-        phase_combined = self._combine(phase_features, "phase_combined")
+        phase_combined = self._enforce_physical_phase(self._combine(phase_features, "phase_combined"), "phase_combined")
         together = magnitude_combined.add(phase_combined, name="together")
 
         magnitude_combined.save_csv(data_dir / "magnitude_combined.csv")
@@ -154,6 +154,39 @@ class H1FullCombinedRandomGenerator:
             h_db=combined.h_db,
             phase_rad=combined.phase_rad,
         )
+
+    def _enforce_physical_phase(self, h1: H1, name: str) -> H1:
+        return _enforce_positive_group_delay_phase(h1, name=name)
+
+
+def _group_delay_ns(freq_hz: np.ndarray, phase_rad: np.ndarray) -> np.ndarray:
+    omega_rad = 2.0 * np.pi * freq_hz
+    return -np.gradient(np.unwrap(phase_rad), omega_rad) * 1e9
+
+
+def _enforce_positive_group_delay_phase(
+    h1: H1,
+    name: str,
+    min_mean_group_delay_ns: float = 0.20,
+    min_low_percentile_group_delay_ns: float = 0.02,
+    low_percentile: float = 2.0,
+) -> H1:
+    group_delay_ns = _group_delay_ns(h1.freq_hz, h1.phase_rad)
+    mean_delay_ns = float(np.mean(group_delay_ns))
+    low_delay_ns = float(np.percentile(group_delay_ns, low_percentile))
+
+    extra_delay_ns = max(
+        0.0,
+        min_mean_group_delay_ns - mean_delay_ns,
+        min_low_percentile_group_delay_ns - low_delay_ns,
+    )
+    if extra_delay_ns <= 0.0:
+        return H1(name=name, freq_hz=h1.freq_hz, h_db=h1.h_db, phase_rad=h1.phase_rad)
+
+    extra_delay_s = extra_delay_ns * 1e-9
+    freq_offset_hz = h1.freq_hz - h1.freq_hz[0]
+    physical_phase_rad = np.unwrap(h1.phase_rad - 2.0 * np.pi * freq_offset_hz * extra_delay_s)
+    return H1(name=name, freq_hz=h1.freq_hz, h_db=h1.h_db, phase_rad=physical_phase_rad)
 
 
 def _load_h1_random_model_config(profile: str | None = None) -> dict[str, Any]:
@@ -264,6 +297,8 @@ if __name__ == "__main__":
             "magnitude_combined_ripple_pp_db": run.magnitude_combined.ripple_pp_db(),
             "phase_combined_min_rad": np.min(run.phase_combined.phase_rad),
             "phase_combined_max_rad": np.max(run.phase_combined.phase_rad),
+            "phase_group_delay_mean_ns": float(np.mean(_group_delay_ns(run.phase_combined.freq_hz, run.phase_combined.phase_rad))),
+            "phase_group_delay_positive_ratio": float(np.mean(_group_delay_ns(run.phase_combined.freq_hz, run.phase_combined.phase_rad) > 0.0)),
             "outputs": {
                 "magnitude_combined_csv": run.data_dir / "magnitude_combined.csv",
                 "phase_combined_csv": run.data_dir / "phase_combined.csv",
@@ -288,6 +323,9 @@ if __name__ == "__main__":
         "phase_combined_range_rad: "
         f"{np.min(run.phase_combined.phase_rad):.6f} to {np.max(run.phase_combined.phase_rad):.6f}"
     )
+    phase_group_delay_ns = _group_delay_ns(run.phase_combined.freq_hz, run.phase_combined.phase_rad)
+    print(f"phase_group_delay_mean_ns: {np.mean(phase_group_delay_ns):.6f}")
+    print(f"phase_group_delay_positive_ratio: {np.mean(phase_group_delay_ns > 0.0):.6f}")
     print(f"together_csv: {run.data_dir / 'together.csv'}")
     print("saved_plots:")
     for plot_path in plot_paths:

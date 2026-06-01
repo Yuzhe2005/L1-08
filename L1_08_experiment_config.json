@@ -50,9 +50,9 @@
       },
       "phase": {
         "linear_phase_delay": {
-          "delay_ns_min": 0.05,
-          "delay_ns_max": 2.0,
-          "allow_negative_delay": true
+          "delay_ns_min": 1.0,
+          "delay_ns_max": 4.0,
+          "allow_negative_delay": false
         },
         "phase_ripple": {
           "component_count_min": 1,
@@ -127,7 +127,7 @@
           "measurement_noise": {"noise_std_db_max": 0.004}
         },
         "phase": {
-          "linear_phase_delay": {"delay_ns_max": 0.5},
+          "linear_phase_delay": {"delay_ns_min": 0.4, "delay_ns_max": 1.2, "allow_negative_delay": false},
           "phase_ripple": {"amplitude_rad_max": 0.06, "cycles_max": 3.0},
           "local_phase_distortion": {"amplitude_rad_max": 0.1, "feature_count_max": 2},
           "group_delay_ripple": {"delay_ripple_ns_max": 0.06},
@@ -159,7 +159,7 @@
           "measurement_noise": {"noise_std_db_max": 0.012}
         },
         "phase": {
-          "linear_phase_delay": {"delay_ns_max": 2.5},
+          "linear_phase_delay": {"delay_ns_min": 1.5, "delay_ns_max": 5.0, "allow_negative_delay": false},
           "phase_ripple": {"amplitude_rad_max": 0.28, "cycles_max": 6.0},
           "local_phase_distortion": {"amplitude_rad_max": 0.45},
           "group_delay_ripple": {"delay_ripple_ns_max": 0.3},
@@ -182,7 +182,7 @@
           "measurement_noise": {"noise_std_db_max": 0.015}
         },
         "phase": {
-          "linear_phase_delay": {"delay_ns_max": 3.0},
+          "linear_phase_delay": {"delay_ns_min": 2.0, "delay_ns_max": 6.0, "allow_negative_delay": false},
           "phase_ripple": {"amplitude_rad_max": 0.4, "cycles_max": 7.0},
           "local_phase_distortion": {"amplitude_rad_max": 0.65, "feature_count_max": 5},
           "group_delay_ripple": {"delay_ripple_ns_max": 0.45},
@@ -205,7 +205,7 @@
           "measurement_noise": {"noise_std_db_max": 0.02}
         },
         "phase": {
-          "linear_phase_delay": {"delay_ns_max": 3.5},
+          "linear_phase_delay": {"delay_ns_min": 2.5, "delay_ns_max": 8.0, "allow_negative_delay": false},
           "phase_ripple": {"amplitude_rad_max": 0.55, "cycles_max": 9.0},
           "local_phase_distortion": {"amplitude_rad_max": 0.85, "feature_count_max": 6},
           "group_delay_ripple": {"delay_ripple_ns_max": 0.7},

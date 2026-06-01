@@ -16,9 +16,9 @@ from H1_common import FrequencyGridConfig, H1
 @dataclass(frozen=True)
 class LinearPhaseDelayRandomConfig:
     grid: FrequencyGridConfig = FrequencyGridConfig()
-    delay_ns_min: float = 0.05
-    delay_ns_max: float = 2.0
-    allow_negative_delay: bool = True
+    delay_ns_min: float = 1.0
+    delay_ns_max: float = 4.0
+    allow_negative_delay: bool = False
 
 
 class H1LinearPhaseDelayRandomGenerator:
