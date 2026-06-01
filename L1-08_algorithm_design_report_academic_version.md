@@ -1,10 +1,10 @@
-# L1-08 幅频 FIR 均衡算法行为级仿真报告（学术版）
+# L1-08 幅频 FIR 均衡算法行为级仿真报告
 
 ## 摘要
 
 本文针对 L1-08 幅频 FIR 均衡算法进行行为级仿真验证。L1-08 的目标是在射频前端链路存在幅频不平坦的情况下，通过数字 FIR 均衡器补偿通带内 magnitude ripple，使补偿后的总响应尽量平坦。本文构建了一个可复现的仿真流程，包括随机复数通道响应 H1 生成、理想补偿目标 H2_target 生成、real linear-phase FIR 设计、fixed-point 系数量化、multi-tone 行为级验证和 QAM magnitude-only EVM 辅助验证。
 
-根据导师反馈，本文将仿真从单个随机 case 扩展为 bandwidth profile 与 seed case 两个维度的 sweep。当前实验共覆盖 5 个 bandwidth profile、3 组 seed case、3 个 FIR tap 数和 3 种 fixed-point 格式，共 135 组组合。实验结果显示，fixed dense ripple 通过 0.1 dB 指标的组合为 101/135，multi-tone behavior ripple 通过 0.1 dB 指标的组合为 122/135。结果说明 L1-08 的算法方向是可行的，但实际鲁棒性受 H1 随机形态、FIR tap 数和 fixed-point 格式影响明显，后续仍需继续进行跨 seed、跨 bandwidth 和跨 fixed-point 的鲁棒性验证。
+当前实验共覆盖 5 个 bandwidth profile、3 组 seed case、3 个 FIR tap 数和 3 种 fixed-point 格式，共 135 组组合。实验结果显示，fixed dense ripple 通过 0.1 dB 指标的组合为 101/135，multi-tone behavior ripple 通过 0.1 dB 指标的组合为 122/135。结果说明 L1-08 的算法方向是可行的，但实际鲁棒性受 H1 随机形态、FIR tap 数和 fixed-point 格式影响明显，后续仍需继续进行跨 seed、跨 bandwidth 和跨 fixed-point 的鲁棒性验证。
 
 ---
 
@@ -95,6 +95,10 @@ Htotal(f) = H1(f) * H2_actual(f)
 
 若 `|Htotal(f)|` 在通带内足够平坦，则说明补偿有效。
 
+下面给出本轮 sweep 中一个无 saturation 且 dense ripple 较低的代表性组合，用于直观说明 H1、H2_target、H2_actual 与补偿后 Htotal 之间的关系。该例对应 `bw_2g_seed_a_tap080_reg1em04_q2_14`，其 fixed dense ripple 为 `0.025346 dB`。
+
+![Representative H1 H2 Htotal response](sweep_result/bandwidth_profile_seed_sweep/bw_2g_seed_a_tap080_reg1em04_q2_14/graph/h2_fir_design.png)
+
 ---
 
 ## 4. 行为级仿真方案设计
@@ -103,21 +107,21 @@ Htotal(f) = H1(f) * H2_actual(f)
 
 当前行为级仿真 pipeline 如下：
 
-```text
-H1 random generation
-        ↓
-H2 target generation
-        ↓
-FIR coefficient design
-        ↓
-fixed-point quantization
-        ↓
-multi-tone behavior simulation
-        ↓
-QAM magnitude-only EVM simulation
-        ↓
-sweep result analysis
-```
+<div style="width: 520px; max-width: 100%; margin: 16px 0; font-family: Arial, sans-serif;">
+  <div style="border: 1.5px solid #555; padding: 10px 14px; text-align: center; background: #fafafa;">H1 random generation</div>
+  <div style="text-align: center; padding: 5px 0;">↓</div>
+  <div style="border: 1.5px solid #555; padding: 10px 14px; text-align: center; background: #fafafa;">H2 target generation</div>
+  <div style="text-align: center; padding: 5px 0;">↓</div>
+  <div style="border: 1.5px solid #555; padding: 10px 14px; text-align: center; background: #fafafa;">FIR coefficient design</div>
+  <div style="text-align: center; padding: 5px 0;">↓</div>
+  <div style="border: 1.5px solid #555; padding: 10px 14px; text-align: center; background: #fafafa;">Fixed-point quantization</div>
+  <div style="text-align: center; padding: 5px 0;">↓</div>
+  <div style="border: 1.5px solid #555; padding: 10px 14px; text-align: center; background: #fafafa;">Multi-tone behavior simulation</div>
+  <div style="text-align: center; padding: 5px 0;">↓</div>
+  <div style="border: 1.5px solid #555; padding: 10px 14px; text-align: center; background: #fafafa;">QAM magnitude-only EVM simulation</div>
+  <div style="text-align: center; padding: 5px 0;">↓</div>
+  <div style="border: 1.5px solid #555; padding: 10px 14px; text-align: center; background: #fafafa;">Sweep result analysis</div>
+</div>
 
 该流程先在行为级验证算法方向，再为后续 RTL 实现和真实硬件数据对照提供基础。
 
@@ -184,11 +188,56 @@ seed 数值本身不表示难度大小。真正决定 H1 难度的是 bandwidth 
 | Q3.13 | 16 | 13 | 3 |
 | Q4.12 | 16 | 12 | 4 |
 
-小数位越多，量化精度越高，但整数范围越小；整数位越多，动态范围越大，但小数精度越低。因此 fixed-point 分析必须同时关注 quantization error 和 coefficient saturation。
+本文使用的 `Qm.n` 表示 signed fixed-point 格式，其中 `m` 表示包含符号位在内的整数位数，`n` 表示小数位数。因此：
+
+```text
+total_bits = m + n
+quantization_step = 2^(-n)
+representable_range ≈ [-2^(m-1), 2^(m-1) - 2^(-n)]
+```
+
+对应到当前三种格式：
+
+| Format | Quantization step | Approximate representable range |
+|---|---:|---:|
+| Q2.14 | 2^-14 = 0.000061035 | [-2, 1.999939] |
+| Q3.13 | 2^-13 = 0.000122070 | [-4, 3.999878] |
+| Q4.12 | 2^-12 = 0.000244141 | [-8, 7.999756] |
+
+小数位越多，量化精度越高，但整数范围越小；整数位越多，动态范围越大，但小数精度越低。因此 fixed-point 分析必须同时关注 quantization error 和 coefficient saturation。当前 sweep 中，`Q2.14` 的小数精度最高，但可表示范围最小，因此更容易在 FIR coefficient 过大时发生 saturation；`Q3.13` 在精度和动态范围之间更平衡；`Q4.12` 动态范围最大，但小数精度最低。
 
 ---
 
 ## 5. 实验设置
+
+### 5.1 Configuration files
+
+当前实验主要由两个 JSON 配置文件控制。
+
+| Config file | Role | Main contents |
+|---|---|---|
+| `L1_08_experiment_config.json` | Base experiment config | active config、bandwidth profiles、H1 random model 参数范围、behavior/QAM 默认参数 |
+| `sweep_test/config.json` | Sweep controller config | 本轮 sweep 使用的 profiles、seed_cases、tap_num、regularization、fixed-point formats、输出路径和 cleanup 设置 |
+
+二者的关系如下：
+
+```text
+sweep_test/config.json
+        ↓
+run_sweep.py reads sweep dimensions
+        ↓
+each combo selects profile and seed_case through environment variables
+        ↓
+L1_08_experiment_config.json provides the actual profile parameters
+        ↓
+pipeline runs one complete H1/H2/FIR/fixed-point/behavior/QAM simulation
+        ↓
+results are copied into sweep_result/
+```
+
+因此，`L1_08_experiment_config.json` 定义“一个实验可以怎样被生成”，而 `sweep_test/config.json` 定义“本轮批量实验要扫哪些组合”。本轮 135 组 sweep 的 bandwidth profile 来自 `L1_08_experiment_config.json`，seed case、tap number、regularization 和 fixed-point 格式来自 `sweep_test/config.json`。
+
+### 5.2 Sweep dimensions
 
 本轮 sweep 设置如下：
 
@@ -292,9 +341,9 @@ sweep_analysis_report.md
 | bw_2g_seed_c_tap064_reg1em04_q2_14 | 4 | 74.681918 dB |
 | bw_2g_seed_c_tap080_reg1em04_q2_14 | 2 | 67.807851 dB |
 
-这些失败 case 说明 fixed-point 分析不能只看小数精度，还必须检查系数动态范围。
+这些失败 case 说明 fixed-point 分析不能只看小数精度，还必须检查系数动态范围。为了避免将 135 个 combo 全部绘制在同一张图中造成横轴标签拥挤，下面只显示 `fixed_saturation_count > 0` 的失败组合。结果显示，saturation 只出现在 3 / 135 个组合中，且全部发生在 `Q2.14` fixed-point 格式下。
 
-![Coefficient scale and saturation](sweep_result/bandwidth_profile_seed_sweep/sweep_saturation_and_coeff_range.png)
+![Saturation failure combos only](sweep_result/bandwidth_profile_seed_sweep/saturation_failure_combos.png)
 
 ---
 
@@ -338,13 +387,11 @@ QAM magnitude-only EVM 用于辅助观察幅度补偿对宽带调制信号的影
 5. 96 tap 整体最稳，64 tap 可作为硬件资源 baseline。
 6. Dense ripple 应作为主要判据，behavior ripple 和 QAM magnitude-only EVM 作为辅助验证。
 
-因此，当前阶段已经达成导师提出的行为级仿真验证目标，但后续仍需进一步扩展 regularization sweep、固定配置跨 seed 鲁棒性分析，以及真实硬件 H1 数据验证。
+后续仍需进一步扩展 regularization sweep、固定配置跨 seed 鲁棒性分析，以及真实硬件 H1 数据验证。
 
 ---
 
 ## 9. 后续工作
-
-建议下一阶段继续完成以下工作：
 
 1. 增加 regularization sweep，例如 `1e-5`, `3e-5`, `1e-4`, `3e-4`, `1e-3`。
 2. 对 `tap064 + Q3.13` 与 `tap096 + Q3.13` 做重点对比。
