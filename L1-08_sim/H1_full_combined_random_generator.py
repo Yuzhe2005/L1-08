@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 
+from L1_08_paths import DATA_ROOT, RESULTS_ROOT
 from H1_common import FrequencyGridConfig, H1
 from magnitude.H1_edge_rolloff_random_generator import EdgeRolloffRandomConfig, H1EdgeRolloffRandomGenerator
 from magnitude.H1_measurement_noise_random_generator import H1MeasurementNoiseRandomGenerator, MeasurementNoiseRandomConfig
@@ -52,9 +53,8 @@ class H1FullCombinedRandomGenerator:
 
     def generate(self, run_name: str | None = None) -> FullCombinedH1Run:
         run_name = run_name or f"h1_full_combined_random_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        project_root = Path(__file__).resolve().parent
-        data_dir = project_root / "data" / run_name
-        results_dir = project_root / "results" / run_name
+        data_dir = DATA_ROOT / run_name
+        results_dir = RESULTS_ROOT / run_name
         data_dir.mkdir(parents=True, exist_ok=True)
         results_dir.mkdir(parents=True, exist_ok=True)
 

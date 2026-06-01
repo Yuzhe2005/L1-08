@@ -7,41 +7,30 @@ import numpy as np
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
+sys.path.insert(0, str(PROJECT_ROOT / "L1-08_sim"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from H1_common import FrequencyGridConfig, H1
 
 
 @dataclass(frozen=True)
-class PhaseRippleRandomConfig:
+class PhaseNoiseRandomConfig:
     grid: FrequencyGridConfig = FrequencyGridConfig()
-    component_count_min: int = 1
-    component_count_max: int = 4
-    amplitude_rad_min: float = 0.02
-    amplitude_rad_max: float = 0.20
-    cycles_min: float = 0.5
-    cycles_max: float = 5.0
+    noise_std_rad_min: float = 0.001
+    noise_std_rad_max: float = 0.01
 
 
-class H1PhaseRippleRandomGenerator:
-    def __init__(self, config: PhaseRippleRandomConfig | None = None, seed: int | None = None) -> None:
-        self.config = config or PhaseRippleRandomConfig()
+class H1PhaseNoiseRandomGenerator:
+    def __init__(self, config: PhaseNoiseRandomConfig | None = None, seed: int | None = None) -> None:
+        self.config = config or PhaseNoiseRandomConfig()
         self.rng = np.random.default_rng(seed)
 
-    def generate(self, name: str = "h1_phase_ripple_random") -> H1:
+    def generate(self, name: str = "h1_phase_noise_random") -> H1:
         cfg = self.config
         freq_hz = cfg.grid.create()
-        x = np.linspace(0.0, 1.0, freq_hz.size)
 
-        component_count = int(self.rng.integers(cfg.component_count_min, cfg.component_count_max + 1))
-        phase_rad = np.zeros_like(freq_hz, dtype=float)
-
-        for _ in range(component_count):
-            amplitude_rad = self.rng.uniform(cfg.amplitude_rad_min, cfg.amplitude_rad_max)
-            cycles = self.rng.uniform(cfg.cycles_min, cfg.cycles_max)
-            phase_offset_rad = self.rng.uniform(0.0, 2.0 * np.pi)
-            phase_rad += amplitude_rad * np.sin(2.0 * np.pi * cycles * x + phase_offset_rad)
-
+        noise_std_rad = self.rng.uniform(cfg.noise_std_rad_min, cfg.noise_std_rad_max)
+        phase_rad = self.rng.normal(loc=0.0, scale=noise_std_rad, size=freq_hz.size)
         phase_rad -= np.mean(phase_rad)
         phase_rad = np.unwrap(phase_rad)
         h_db = np.zeros_like(freq_hz, dtype=float)
@@ -50,9 +39,9 @@ class H1PhaseRippleRandomGenerator:
 
 
 if __name__ == "__main__":
-    generator = H1PhaseRippleRandomGenerator()
+    generator = H1PhaseNoiseRandomGenerator()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    h1 = generator.generate(name=f"h1_phase_ripple_random_{timestamp}")
+    h1 = generator.generate(name=f"h1_phase_noise_random_{timestamp}")
 
     project_root = Path(__file__).resolve().parents[1]
     output_path = project_root / "data" / f"{h1.name}.csv"

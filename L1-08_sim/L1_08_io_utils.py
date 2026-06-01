@@ -5,7 +5,10 @@ from pathlib import Path
 import numpy as np
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+from L1_08_paths import DATA_ROOT, SIM_ROOT
+
+
+PROJECT_ROOT = SIM_ROOT
 
 
 @dataclass(frozen=True)
@@ -23,7 +26,7 @@ class H1Phase:
     phase_rad: np.ndarray
 
 
-def find_latest_ready_run(project_root: Path = PROJECT_ROOT) -> Path:
+def find_latest_ready_run(data_root: Path = DATA_ROOT) -> Path:
     candidates: list[Path] = []
     required_files = [
         "magnitude_combined.csv",
@@ -32,7 +35,7 @@ def find_latest_ready_run(project_root: Path = PROJECT_ROOT) -> Path:
         "h2_fir_coefficients_fixed.csv",
     ]
 
-    for run_dir in (project_root / "data").glob("h1_full_combined_random_*"):
+    for run_dir in data_root.glob("h1_full_combined_random_*"):
         if all((run_dir / file_name).is_file() for file_name in required_files):
             candidates.append(run_dir)
 

@@ -6,7 +6,9 @@ from pathlib import Path
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+from L1_08_paths import DATA_ROOT, RESULTS_ROOT, SIM_ROOT
+
+PROJECT_ROOT = SIM_ROOT
 os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib"))
 
 import matplotlib
@@ -239,7 +241,7 @@ def run_qam_evm_sim(run_dir: Path, config: QamEvmConfig) -> QamEvmRun:
 
     return QamEvmRun(
         run_dir=run_dir,
-        results_dir=PROJECT_ROOT / "results" / run_dir.name,
+        results_dir=RESULTS_ROOT / run_dir.name,
         config=config,
         qam_bins=qam_bins,
         qam_freq_hz=qam_freq_hz,

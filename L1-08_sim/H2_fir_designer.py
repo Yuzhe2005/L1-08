@@ -6,7 +6,9 @@ from pathlib import Path
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+from L1_08_paths import DATA_ROOT, RESULTS_ROOT, SIM_ROOT
+
+PROJECT_ROOT = SIM_ROOT
 os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib"))
 
 import matplotlib
@@ -162,13 +164,13 @@ def load_h2_target_csv(input_csv: Path) -> H2TargetData:
 
 def find_latest_h2_target_csv() -> Path:
     candidates = sorted(
-        (PROJECT_ROOT / "data").glob("h1_full_combined_random_*/h2_target.csv"),
+        (DATA_ROOT).glob("h1_full_combined_random_*/h2_target.csv"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
     if not candidates:
         raise FileNotFoundError(
-            f"No h2_target.csv found under {PROJECT_ROOT / 'data'}. "
+            f"No h2_target.csv found under {DATA_ROOT}. "
             "Run H1_full_combined_random_generator.py and H2_target_generator.py first."
         )
     return candidates[0]
@@ -184,7 +186,7 @@ def default_response_csv(input_csv: Path) -> Path:
 
 def default_plot_path(input_csv: Path) -> Path:
     run_name = input_csv.parent.name
-    return PROJECT_ROOT / "results" / run_name / "h2_fir_design.png"
+    return RESULTS_ROOT / run_name / "h2_fir_design.png"
 
 
 def save_coefficients_csv(design: H2FirDesign, output_csv: Path) -> None:

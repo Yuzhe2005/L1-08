@@ -115,7 +115,7 @@ class ExistingPipelineComboRunner:
                 combo,
             )
 
-        source_graph_dir = self.settings.sim_dir / "results" / source_run_dir.name
+        source_graph_dir = self.settings.repo_root / "results" / source_run_dir.name
         shutil.copytree(source_run_dir, data_dir)
         shutil.copytree(source_graph_dir, graph_dir)
 
@@ -123,8 +123,8 @@ class ExistingPipelineComboRunner:
         self._write_metadata(combo_dir, combo, source_run_dir, source_graph_dir, metrics)
 
         if self.settings.output.cleanup_sim_outputs_after_copy:
-            self._remove_sim_output_dir(source_run_dir, self.settings.sim_dir / "data")
-            self._remove_sim_output_dir(source_graph_dir, self.settings.sim_dir / "results")
+            self._remove_sim_output_dir(source_run_dir, self.settings.repo_root / "data")
+            self._remove_sim_output_dir(source_graph_dir, self.settings.repo_root / "results")
 
         return ComboResult(
             combo=combo,
@@ -175,12 +175,12 @@ class ExistingPipelineComboRunner:
 
     def _latest_run_dir(self) -> Path:
         candidates = sorted(
-            (self.settings.sim_dir / "data").glob("h1_full_combined_random_*"),
+            (self.settings.repo_root / "data").glob("h1_full_combined_random_*"),
             key=lambda path: path.stat().st_mtime,
             reverse=True,
         )
         if not candidates:
-            raise FileNotFoundError(f"No generated H1 run found under {self.settings.sim_dir / 'data'}")
+            raise FileNotFoundError(f"No generated H1 run found under {self.settings.repo_root / 'data'}")
         return candidates[0]
 
     def _remove_sim_output_dir(self, target: Path, expected_parent: Path) -> None:

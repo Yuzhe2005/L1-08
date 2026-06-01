@@ -6,7 +6,9 @@ from pathlib import Path
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+from L1_08_paths import DATA_ROOT, RESULTS_ROOT, SIM_ROOT
+
+PROJECT_ROOT = SIM_ROOT
 os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib"))
 
 import matplotlib
@@ -100,13 +102,13 @@ class FixedPointResponse:
 
 def find_latest_coefficients_csv() -> Path:
     candidates = sorted(
-        (PROJECT_ROOT / "data").glob("h1_full_combined_random_*/h2_fir_coefficients.csv"),
+        (DATA_ROOT).glob("h1_full_combined_random_*/h2_fir_coefficients.csv"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
     if not candidates:
         raise FileNotFoundError(
-            f"No h2_fir_coefficients.csv found under {PROJECT_ROOT / 'data'}. "
+            f"No h2_fir_coefficients.csv found under {DATA_ROOT}. "
             "Run H1_full_combined_random_generator.py, H2_target_generator.py, "
             "and H2_fir_designer.py first."
         )
@@ -127,7 +129,7 @@ def default_response_csv(coefficients_csv: Path) -> Path:
 
 def default_plot_path(coefficients_csv: Path) -> Path:
     run_name = coefficients_csv.parent.name
-    return PROJECT_ROOT / "results" / run_name / "h2_fixed_point_quantization.png"
+    return RESULTS_ROOT / run_name / "h2_fixed_point_quantization.png"
 
 
 def load_coefficients_csv(input_csv: Path) -> np.ndarray:

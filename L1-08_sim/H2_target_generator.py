@@ -6,7 +6,9 @@ from pathlib import Path
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+from L1_08_paths import DATA_ROOT, RESULTS_ROOT, SIM_ROOT
+
+PROJECT_ROOT = SIM_ROOT
 os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib"))
 
 import matplotlib
@@ -85,7 +87,7 @@ class H2TargetGenerator:
 
 
 def find_latest_magnitude_combined_csv() -> Path:
-    data_dir = PROJECT_ROOT / "data"
+    data_dir = DATA_ROOT
     candidates = sorted(
         data_dir.glob("h1_full_combined_random_*/magnitude_combined.csv"),
         key=lambda path: path.stat().st_mtime,
@@ -102,7 +104,7 @@ def default_output_csv(input_csv: Path) -> Path:
 
 def default_plot_path(input_csv: Path) -> Path:
     run_name = input_csv.parent.name
-    return PROJECT_ROOT / "results" / run_name / "h2_target.png"
+    return RESULTS_ROOT / run_name / "h2_target.png"
 
 
 def save_h2_target_csv(target: H2Target, output_csv: Path) -> None:

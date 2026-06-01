@@ -7,6 +7,7 @@ import numpy as np
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
+sys.path.insert(0, str(PROJECT_ROOT / "L1-08_sim"))
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(CURRENT_DIR))
 

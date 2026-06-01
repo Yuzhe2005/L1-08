@@ -7,7 +7,9 @@ from pathlib import Path
 import numpy as np
 from scipy.signal import lfilter
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+from L1_08_paths import RESULTS_ROOT, SIM_ROOT
+
+PROJECT_ROOT = SIM_ROOT
 os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib"))
 
 import matplotlib
@@ -191,7 +193,7 @@ def run_behavior_sim(run_dir: Path, config: BehaviorConfig) -> BehaviorRun:
 
     return BehaviorRun(
         run_dir=run_dir,
-        results_dir=PROJECT_ROOT / "results" / run_dir.name,
+        results_dir=RESULTS_ROOT / run_dir.name,
         config=config,
         fir_tap_num=coeffs.size,
         tone_bins=tone_bins,
