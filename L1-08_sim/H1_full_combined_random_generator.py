@@ -29,6 +29,7 @@ from L1_08_config import (
     get_selected_seed_case_name,
 )
 from L1_08_run_summary import update_run_summary
+from L1_08_io_utils import h1_data_dir
 
 
 @dataclass(frozen=True)
@@ -55,8 +56,10 @@ class H1FullCombinedRandomGenerator:
         run_name = run_name or f"h1_full_combined_random_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         data_dir = DATA_ROOT / run_name
         results_dir = RESULTS_ROOT / run_name
+        output_data_dir = h1_data_dir(data_dir)
         data_dir.mkdir(parents=True, exist_ok=True)
         results_dir.mkdir(parents=True, exist_ok=True)
+        output_data_dir.mkdir(parents=True, exist_ok=True)
 
         magnitude_features = [
             self._generate_magnitude_feature("slope", H1SlopeRandomGenerator, SlopeRandomConfig),
@@ -93,9 +96,9 @@ class H1FullCombinedRandomGenerator:
         phase_combined = self._enforce_physical_phase(self._combine(phase_features, "phase_combined"), "phase_combined")
         together = magnitude_combined.add(phase_combined, name="together")
 
-        magnitude_combined.save_csv(data_dir / "magnitude_combined.csv")
-        phase_combined.save_csv(data_dir / "phase_combined.csv")
-        together.save_csv(data_dir / "together.csv")
+        magnitude_combined.save_csv(output_data_dir / "magnitude_combined.csv")
+        phase_combined.save_csv(output_data_dir / "phase_combined.csv")
+        together.save_csv(output_data_dir / "together.csv")
 
         return FullCombinedH1Run(
             run_name=run_name,
@@ -244,14 +247,16 @@ def _coerce_config_value(value: Any, default_value: Any) -> Any:
 
 
 def plot_run(run: FullCombinedH1Run) -> list[Path]:
-    magnitude_plotter = HMagnitudePlotter(results_dir=run.results_dir)
-    phase_plotter = HPhasePlotter(results_dir=run.results_dir)
+    plot_dir = run.results_dir / "h1_full_combined_random"
+    h1_dir = h1_data_dir(run.data_dir)
+    magnitude_plotter = HMagnitudePlotter(results_dir=plot_dir)
+    phase_plotter = HPhasePlotter(results_dir=plot_dir)
 
     plot_paths: list[Path] = []
 
-    plot_paths.append(magnitude_plotter.plot_csv(run.data_dir / "magnitude_combined.csv"))
+    plot_paths.append(magnitude_plotter.plot_csv(h1_dir / "magnitude_combined.csv"))
 
-    plot_paths.append(phase_plotter.plot_csv(run.data_dir / "phase_combined.csv"))
+    plot_paths.append(phase_plotter.plot_csv(h1_dir / "phase_combined.csv"))
 
     return plot_paths
 
@@ -264,6 +269,7 @@ if __name__ == "__main__":
     generator = H1FullCombinedRandomGenerator(seed=h1_seed, profile=profile_name)
     run = generator.generate()
     plot_paths = plot_run(run)
+    h1_dir = h1_data_dir(run.data_dir)
     summary_path = update_run_summary(
         run.data_dir,
         "h1_generation",
@@ -300,9 +306,9 @@ if __name__ == "__main__":
             "phase_group_delay_mean_ns": float(np.mean(_group_delay_ns(run.phase_combined.freq_hz, run.phase_combined.phase_rad))),
             "phase_group_delay_positive_ratio": float(np.mean(_group_delay_ns(run.phase_combined.freq_hz, run.phase_combined.phase_rad) > 0.0)),
             "outputs": {
-                "magnitude_combined_csv": run.data_dir / "magnitude_combined.csv",
-                "phase_combined_csv": run.data_dir / "phase_combined.csv",
-                "together_csv": run.data_dir / "together.csv",
+                "magnitude_combined_csv": h1_dir / "magnitude_combined.csv",
+                "phase_combined_csv": h1_dir / "phase_combined.csv",
+                "together_csv": h1_dir / "together.csv",
                 "plots": plot_paths,
             },
         },
@@ -316,7 +322,7 @@ if __name__ == "__main__":
     print(f"data_folder: {run.data_dir}")
     print(f"results_folder: {run.results_dir}")
     print(f"summary_json: {summary_path}")
-    print(f"csv_count: {len(list(run.data_dir.glob('*.csv')))}")
+    print(f"csv_count: {len(list(h1_dir.glob('*.csv')))}")
     print(f"plot_count: {len(plot_paths)}")
     print(f"magnitude_combined_ripple_pp_db: {run.magnitude_combined.ripple_pp_db():.6f}")
     print(
@@ -326,7 +332,7 @@ if __name__ == "__main__":
     phase_group_delay_ns = _group_delay_ns(run.phase_combined.freq_hz, run.phase_combined.phase_rad)
     print(f"phase_group_delay_mean_ns: {np.mean(phase_group_delay_ns):.6f}")
     print(f"phase_group_delay_positive_ratio: {np.mean(phase_group_delay_ns > 0.0):.6f}")
-    print(f"together_csv: {run.data_dir / 'together.csv'}")
+    print(f"together_csv: {h1_dir / 'together.csv'}")
     print("saved_plots:")
     for plot_path in plot_paths:
         print(f"  {plot_path}")

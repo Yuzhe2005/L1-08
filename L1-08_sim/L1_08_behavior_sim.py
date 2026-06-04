@@ -20,7 +20,11 @@ import matplotlib.pyplot as plt
 
 from L1_08_config import get_active_config_value, get_common_config_value
 from L1_08_io_utils import (
+    behavior_data_dir,
     find_latest_ready_run,
+    h1_data_dir,
+    h2_fir_design_data_dir,
+    h2_fixed_point_data_dir,
     load_fir_coefficients,
     load_h1_magnitude,
     load_h1_phase,
@@ -142,10 +146,13 @@ def measure_tone_amplitudes(signal: np.ndarray, tone_bins: np.ndarray, config: B
 
 
 def run_behavior_sim(run_dir: Path, config: BehaviorConfig) -> BehaviorRun:
-    h1 = load_h1_magnitude(run_dir / "magnitude_combined.csv")
-    h1_phase = load_h1_phase(run_dir / "phase_combined.csv")
-    coeffs = load_fir_coefficients(run_dir / "h2_fir_coefficients.csv")
-    fixed_coeffs = load_fir_coefficients(run_dir / "h2_fir_coefficients_fixed.csv", "coeff_fixed_float")
+    h1_dir = h1_data_dir(run_dir)
+    fir_dir = h2_fir_design_data_dir(run_dir)
+    fixed_dir = h2_fixed_point_data_dir(run_dir)
+    h1 = load_h1_magnitude(h1_dir / "magnitude_combined.csv")
+    h1_phase = load_h1_phase(h1_dir / "phase_combined.csv")
+    coeffs = load_fir_coefficients(fir_dir / "h2_fir_coefficients.csv")
+    fixed_coeffs = load_fir_coefficients(fixed_dir / "h2_fir_coefficients_fixed.csv", "coeff_fixed_float")
     if fixed_coeffs.size != coeffs.size:
         raise ValueError("Float and fixed-point FIR coefficient files must have the same tap count.")
 
@@ -193,7 +200,7 @@ def run_behavior_sim(run_dir: Path, config: BehaviorConfig) -> BehaviorRun:
 
     return BehaviorRun(
         run_dir=run_dir,
-        results_dir=RESULTS_ROOT / run_dir.name,
+        results_dir=RESULTS_ROOT / run_dir.name / "l1_08_behavior",
         config=config,
         fir_tap_num=coeffs.size,
         tone_bins=tone_bins,
@@ -223,14 +230,16 @@ def run_behavior_sim(run_dir: Path, config: BehaviorConfig) -> BehaviorRun:
 
 
 def save_tone_tables(run: BehaviorRun) -> None:
-    freq_path = run.run_dir / "multitone_frequencies.csv"
+    output_dir = behavior_data_dir(run.run_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    freq_path = output_dir / "multitone_frequencies.csv"
     with freq_path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["tone_index", "fft_bin", "freq_hz", "phase_rad"])
         for idx, (bin_idx, freq_hz, phase) in enumerate(zip(run.tone_bins, run.tone_freq_hz, run.tone_phase_rad)):
             writer.writerow([idx, int(bin_idx), f"{freq_hz:.6f}", f"{phase:.12f}"])
 
-    amp_path = run.run_dir / "tone_amplitude_before_after.csv"
+    amp_path = output_dir / "tone_amplitude_before_after.csv"
     with amp_path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(
@@ -320,10 +329,11 @@ def save_tone_tables(run: BehaviorRun) -> None:
 
 
 def save_behavior_outputs(run: BehaviorRun) -> None:
-    save_iq_csv(run.run_dir / "input_iq.csv", run.input_iq, run.config.fs_hz)
-    save_iq_csv(run.run_dir / "after_h1_iq.csv", run.after_h1_iq, run.config.fs_hz)
-    save_iq_csv(run.run_dir / "after_fir_iq.csv", run.after_fir_iq, run.config.fs_hz)
-    save_iq_csv(run.run_dir / "after_fir_fixed_iq.csv", run.after_fir_fixed_iq, run.config.fs_hz)
+    output_dir = behavior_data_dir(run.run_dir)
+    save_iq_csv(output_dir / "input_iq.csv", run.input_iq, run.config.fs_hz)
+    save_iq_csv(output_dir / "after_h1_iq.csv", run.after_h1_iq, run.config.fs_hz)
+    save_iq_csv(output_dir / "after_fir_iq.csv", run.after_fir_iq, run.config.fs_hz)
+    save_iq_csv(output_dir / "after_fir_fixed_iq.csv", run.after_fir_fixed_iq, run.config.fs_hz)
     save_tone_tables(run)
     plot_behavior(run, run.results_dir / "l1_08_behavior_multitone.png")
     plot_phase_combined(run, run.results_dir / "l1_08_behavior_phase_combined.png")
@@ -656,6 +666,7 @@ def main() -> None:
     h2_fixed_group_delay_samples, _ = calculate_h2_fixed_group_delay(run)
     group_delay_error = h2_group_delay_samples - expected_delay_samples
     fixed_group_delay_error = h2_fixed_group_delay_samples - expected_delay_samples
+    output_dir = behavior_data_dir(run.run_dir)
     summary_path = update_run_summary(
         run.run_dir,
         "behavior_simulation",
@@ -682,12 +693,12 @@ def main() -> None:
             "max_abs_group_delay_error_samples": np.max(np.abs(group_delay_error)),
             "max_abs_fixed_group_delay_error_samples": np.max(np.abs(fixed_group_delay_error)),
             "outputs": {
-                "input_iq_csv": run.run_dir / "input_iq.csv",
-                "after_h1_iq_csv": run.run_dir / "after_h1_iq.csv",
-                "after_fir_iq_csv": run.run_dir / "after_fir_iq.csv",
-                "after_fir_fixed_iq_csv": run.run_dir / "after_fir_fixed_iq.csv",
-                "multitone_frequencies_csv": run.run_dir / "multitone_frequencies.csv",
-                "tone_amplitude_csv": run.run_dir / "tone_amplitude_before_after.csv",
+                "input_iq_csv": output_dir / "input_iq.csv",
+                "after_h1_iq_csv": output_dir / "after_h1_iq.csv",
+                "after_fir_iq_csv": output_dir / "after_fir_iq.csv",
+                "after_fir_fixed_iq_csv": output_dir / "after_fir_fixed_iq.csv",
+                "multitone_frequencies_csv": output_dir / "multitone_frequencies.csv",
+                "tone_amplitude_csv": output_dir / "tone_amplitude_before_after.csv",
                 "magnitude_plot": run.results_dir / "l1_08_behavior_multitone.png",
                 "phase_combined_plot": run.results_dir / "l1_08_behavior_phase_combined.png",
             },
@@ -709,11 +720,11 @@ def main() -> None:
     print(f"ripple_after_fir_fixed_db: {run.ripple_after_fir_fixed_db():.6f}")
     print(f"meets_0p1db_target: {run.ripple_after_fir_db() <= 0.1}")
     print(f"meets_0p1db_target_fixed: {run.ripple_after_fir_fixed_db() <= 0.1}")
-    print(f"input_iq_csv: {run.run_dir / 'input_iq.csv'}")
-    print(f"after_h1_iq_csv: {run.run_dir / 'after_h1_iq.csv'}")
-    print(f"after_fir_iq_csv: {run.run_dir / 'after_fir_iq.csv'}")
-    print(f"after_fir_fixed_iq_csv: {run.run_dir / 'after_fir_fixed_iq.csv'}")
-    print(f"tone_amplitude_csv: {run.run_dir / 'tone_amplitude_before_after.csv'}")
+    print(f"input_iq_csv: {output_dir / 'input_iq.csv'}")
+    print(f"after_h1_iq_csv: {output_dir / 'after_h1_iq.csv'}")
+    print(f"after_fir_iq_csv: {output_dir / 'after_fir_iq.csv'}")
+    print(f"after_fir_fixed_iq_csv: {output_dir / 'after_fir_fixed_iq.csv'}")
+    print(f"tone_amplitude_csv: {output_dir / 'tone_amplitude_before_after.csv'}")
     print(f"plot: {run.results_dir / 'l1_08_behavior_multitone.png'}")
     print(f"phase_combined_plot: {run.results_dir / 'l1_08_behavior_phase_combined.png'}")
 

@@ -99,15 +99,6 @@
       "peak_amplitude": 0.8,
       "seed": 1813889189
     },
-    "qam_evm": {
-      "samples": 65536,
-      "freq_min_hz": 3550000000.0,
-      "freq_max_hz": 4450000000.0,
-      "qam_order": 64,
-      "peak_amplitude": 0.8,
-      "seed": 417471910,
-      "max_constellation_points": 3000
-    },
     "fixed_point": {
       "coeff_total_bits": 16,
       "coeff_frac_bits": 13
@@ -134,8 +125,7 @@
           "phase_noise": {"noise_std_rad_max": 0.003}
         }
       },
-      "behavior": {"tone_min_hz": 5775000000.0, "tone_max_hz": 6225000000.0, "seed": 1068822328},
-      "qam_evm": {"freq_min_hz": 5775000000.0, "freq_max_hz": 6225000000.0, "seed": 225239571}
+      "behavior": {"tone_min_hz": 5775000000.0, "tone_max_hz": 6225000000.0, "seed": 1068822328}
     },
     "bw_1g": {
       "common": {"fs_hz": 24000000000.0},
@@ -143,8 +133,7 @@
       "h1_random_model": {
         "frequency_grid": {"f_min_hz": 5500000000.0, "f_max_hz": 6500000000.0, "num_points": 1001}
       },
-      "behavior": {"tone_min_hz": 5550000000.0, "tone_max_hz": 6450000000.0, "seed": 953625061},
-      "qam_evm": {"freq_min_hz": 5550000000.0, "freq_max_hz": 6450000000.0, "seed": 453249928}
+      "behavior": {"tone_min_hz": 5550000000.0, "tone_max_hz": 6450000000.0, "seed": 953625061}
     },
     "bw_2g": {
       "common": {"fs_hz": 24000000000.0},
@@ -166,8 +155,7 @@
           "phase_noise": {"noise_std_rad_max": 0.012}
         }
       },
-      "behavior": {"tone_min_hz": 5100000000.0, "tone_max_hz": 6900000000.0, "tone_count": 101, "seed": 1925817879},
-      "qam_evm": {"freq_min_hz": 5100000000.0, "freq_max_hz": 6900000000.0, "seed": 140927704}
+      "behavior": {"tone_min_hz": 5100000000.0, "tone_max_hz": 6900000000.0, "tone_count": 101, "seed": 1925817879}
     },
     "bw_4g": {
       "common": {"fs_hz": 24000000000.0},
@@ -189,8 +177,7 @@
           "phase_noise": {"noise_std_rad_max": 0.015}
         }
       },
-      "behavior": {"tone_min_hz": 4200000000.0, "tone_max_hz": 7800000000.0, "tone_count": 151, "seed": 1942894188},
-      "qam_evm": {"freq_min_hz": 4200000000.0, "freq_max_hz": 7800000000.0, "seed": 42596643}
+      "behavior": {"tone_min_hz": 4200000000.0, "tone_max_hz": 7800000000.0, "tone_count": 151, "seed": 1942894188}
     },
     "bw_8g": {
       "common": {"fs_hz": 24000000000.0},
@@ -212,8 +199,7 @@
           "phase_noise": {"noise_std_rad_max": 0.02}
         }
       },
-      "behavior": {"tone_min_hz": 2400000000.0, "tone_max_hz": 9600000000.0, "tone_count": 201, "seed": 1237633613},
-      "qam_evm": {"freq_min_hz": 2400000000.0, "freq_max_hz": 9600000000.0, "seed": 538976944}
+      "behavior": {"tone_min_hz": 2400000000.0, "tone_max_hz": 9600000000.0, "tone_count": 201, "seed": 1237633613}
     }
   },
   "sweep": {

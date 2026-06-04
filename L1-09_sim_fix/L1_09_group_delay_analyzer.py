@@ -13,7 +13,7 @@ REPO_ROOT = L1_09_ROOT.parent
 DATA_ROOT = REPO_ROOT / "data"
 RESULTS_ROOT = REPO_ROOT / "results"
 H1_DATA_DIR_NAME = "h1_full_combined_random"
-MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_matplotlib" / f"pid_{os.getpid()}"
+MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_fix_matplotlib" / f"pid_{os.getpid()}"
 
 MPLCONFIG_ROOT.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIG_ROOT))
@@ -110,7 +110,7 @@ def analyze_group_delay(input_csv: Path) -> GroupDelayAnalysis:
 
 
 def default_output_dir(analysis: GroupDelayAnalysis) -> Path:
-    return RESULTS_ROOT / analysis.run_name / "l1_09_group_delay"
+    return RESULTS_ROOT / analysis.run_name / "l1_09_fix_group_delay"
 
 
 def save_group_delay_csv(analysis: GroupDelayAnalysis, output_csv: Path) -> None:
@@ -203,7 +203,7 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=None,
-        help="Output directory. Defaults to results/<run_name>/l1_09_group_delay.",
+        help="Output directory. Defaults to results/<run_name>/l1_09_fix_group_delay.",
     )
     return parser.parse_args()
 

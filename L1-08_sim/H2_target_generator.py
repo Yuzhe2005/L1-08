@@ -18,6 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from L1_08_run_summary import update_run_summary
+from L1_08_io_utils import h2_target_data_dir, run_dir_from_data_path
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,7 @@ class H2TargetGenerator:
 def find_latest_magnitude_combined_csv() -> Path:
     data_dir = DATA_ROOT
     candidates = sorted(
-        data_dir.glob("h1_full_combined_random_*/magnitude_combined.csv"),
+        data_dir.glob("h1_full_combined_random_*/h1_full_combined_random/magnitude_combined.csv"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -99,12 +100,12 @@ def find_latest_magnitude_combined_csv() -> Path:
 
 
 def default_output_csv(input_csv: Path) -> Path:
-    return input_csv.parent / "h2_target.csv"
+    return h2_target_data_dir(run_dir_from_data_path(input_csv)) / "h2_target.csv"
 
 
 def default_plot_path(input_csv: Path) -> Path:
-    run_name = input_csv.parent.name
-    return RESULTS_ROOT / run_name / "h2_target.png"
+    run_name = run_dir_from_data_path(input_csv).name
+    return RESULTS_ROOT / run_name / "l1_08_h2_target" / "h2_target.png"
 
 
 def save_h2_target_csv(target: H2Target, output_csv: Path) -> None:
@@ -155,19 +156,19 @@ def parse_args() -> argparse.Namespace:
         "--input-csv",
         type=Path,
         default=None,
-        help="Path to H1 magnitude CSV. Defaults to latest data/*/magnitude_combined.csv.",
+        help="Path to H1 magnitude CSV. Defaults to latest data/*/h1_full_combined_random/magnitude_combined.csv.",
     )
     parser.add_argument(
         "--output-csv",
         type=Path,
         default=None,
-        help="Output H2 target CSV. Defaults to h2_target.csv next to input CSV.",
+        help="Output H2 target CSV. Defaults to data/<run>/l1_08_h2_target/h2_target.csv.",
     )
     parser.add_argument(
         "--plot",
         type=Path,
         default=None,
-        help="Output plot path. Defaults to results/<run_name>/h2_target.png.",
+        help="Output plot path. Defaults to results/<run_name>/l1_08_h2_target/h2_target.png.",
     )
     parser.add_argument(
         "--reference-gain-db",
@@ -189,8 +190,9 @@ def main() -> None:
 
     save_h2_target_csv(target, output_csv)
     plot_h2_target(target, plot_path)
+    run_dir = run_dir_from_data_path(input_csv)
     summary_path = update_run_summary(
-        output_csv.parent,
+        run_dir,
         "h2_target_generation",
         {
             "input_csv": input_csv,

@@ -191,7 +191,13 @@ class SweepSettings:
         active = base.get("active", {})
         h1_seed = active.get("h1", {}).get("seed", "none")
         behavior_seed = active.get("behavior", {}).get("seed", "none")
-        qam_seed = active.get("qam_evm", {}).get("seed", "none")
+        input_config_path = self.repo_root / "input_config.json"
+        if input_config_path.is_file():
+            input_config = json.loads(input_config_path.read_text(encoding="utf-8"))
+            input_active = input_config.get("active", {}) if isinstance(input_config, dict) else {}
+            qam_seed = input_active.get("qam_evm", {}).get("seed", "none")
+        else:
+            qam_seed = "none"
         return f"h1_{h1_seed}_behavior_{behavior_seed}_qam_{qam_seed}"
 
     def sweep_output_dir(self) -> Path:

@@ -19,13 +19,18 @@ import matplotlib.pyplot as plt
 
 from L1_08_io_utils import (
     find_latest_ready_run,
+    h1_data_dir,
+    h2_fir_design_data_dir,
+    h2_fixed_point_data_dir,
     load_fir_coefficients,
     load_h1_magnitude,
     load_h1_phase,
+    qam_evm_data_dir,
     save_iq_csv,
 )
 from L1_08_signal_utils import apply_fir_with_cyclic_prefix
 from L1_08_config import get_active_config_value, get_common_config_value
+from input_config import get_input_config_value
 from L1_08_run_summary import update_run_summary
 
 
@@ -122,8 +127,9 @@ def synthesize_qam_if_block(
 
 
 def interpolate_h1_complex(run_dir: Path, freq_hz: np.ndarray) -> np.ndarray:
-    h1_mag = load_h1_magnitude(run_dir / "magnitude_combined.csv")
-    h1_phase = load_h1_phase(run_dir / "phase_combined.csv")
+    h1_dir = h1_data_dir(run_dir)
+    h1_mag = load_h1_magnitude(h1_dir / "magnitude_combined.csv")
+    h1_phase = load_h1_phase(h1_dir / "phase_combined.csv")
 
     if freq_hz[0] < h1_mag.freq_hz[0] or freq_hz[-1] > h1_mag.freq_hz[-1]:
         raise ValueError("QAM frequencies must stay inside the H1 magnitude frequency range.")
@@ -193,8 +199,11 @@ def fit_delay_gain_and_evm(
 
 
 def run_qam_evm_sim(run_dir: Path, config: QamEvmConfig) -> QamEvmRun:
-    coeffs = load_fir_coefficients(run_dir / "h2_fir_coefficients.csv")
-    fixed_coeffs = load_fir_coefficients(run_dir / "h2_fir_coefficients_fixed.csv", "coeff_fixed_float")
+    coeffs = load_fir_coefficients(h2_fir_design_data_dir(run_dir) / "h2_fir_coefficients.csv")
+    fixed_coeffs = load_fir_coefficients(
+        h2_fixed_point_data_dir(run_dir) / "h2_fir_coefficients_fixed.csv",
+        "coeff_fixed_float",
+    )
     if fixed_coeffs.size != coeffs.size:
         raise ValueError("Float and fixed-point FIR coefficient files must have the same tap count.")
 
@@ -241,7 +250,7 @@ def run_qam_evm_sim(run_dir: Path, config: QamEvmConfig) -> QamEvmRun:
 
     return QamEvmRun(
         run_dir=run_dir,
-        results_dir=RESULTS_ROOT / run_dir.name,
+        results_dir=RESULTS_ROOT / run_dir.name / "l1_08_qam_evm",
         config=config,
         qam_bins=qam_bins,
         qam_freq_hz=qam_freq_hz,
@@ -454,30 +463,31 @@ def plot_qam_evm(run: QamEvmRun, output_path: Path) -> None:
 
 
 def save_qam_outputs(run: QamEvmRun) -> None:
-    save_iq_csv(run.run_dir / "qam_input_iq.csv", run.input_iq, run.config.fs_hz)
-    save_iq_csv(run.run_dir / "qam_after_h1_iq.csv", run.after_h1_iq, run.config.fs_hz)
-    save_iq_csv(run.run_dir / "qam_after_fir_iq.csv", run.after_fir_iq, run.config.fs_hz)
-    save_iq_csv(run.run_dir / "qam_after_fir_fixed_iq.csv", run.after_fir_fixed_iq, run.config.fs_hz)
-    save_evm_summary_csv(run, run.run_dir / "qam_evm_summary.csv")
-    save_constellation_csv(run, run.run_dir / "qam_constellation_points.csv")
+    output_dir = qam_evm_data_dir(run.run_dir)
+    save_iq_csv(output_dir / "qam_input_iq.csv", run.input_iq, run.config.fs_hz)
+    save_iq_csv(output_dir / "qam_after_h1_iq.csv", run.after_h1_iq, run.config.fs_hz)
+    save_iq_csv(output_dir / "qam_after_fir_iq.csv", run.after_fir_iq, run.config.fs_hz)
+    save_iq_csv(output_dir / "qam_after_fir_fixed_iq.csv", run.after_fir_fixed_iq, run.config.fs_hz)
+    save_evm_summary_csv(run, output_dir / "qam_evm_summary.csv")
+    save_constellation_csv(run, output_dir / "qam_constellation_points.csv")
     plot_qam_evm(run, run.results_dir / "l1_08_qam_evm.png")
 
 
 def parse_args() -> argparse.Namespace:
     default_fs_hz = float(get_common_config_value("fs_hz", 12e9))
-    default_samples = int(get_active_config_value("qam_evm", "samples", get_active_config_value("behavior", "samples", 65536)))
+    default_samples = int(get_input_config_value("qam_evm", "samples", get_active_config_value("behavior", "samples", 65536)))
     default_freq_min_hz = float(
-        get_active_config_value("qam_evm", "freq_min_hz", get_active_config_value("behavior", "tone_min_hz", 3.55e9))
+        get_input_config_value("qam_evm", "freq_min_hz", get_active_config_value("behavior", "tone_min_hz", 3.55e9))
     )
     default_freq_max_hz = float(
-        get_active_config_value("qam_evm", "freq_max_hz", get_active_config_value("behavior", "tone_max_hz", 4.45e9))
+        get_input_config_value("qam_evm", "freq_max_hz", get_active_config_value("behavior", "tone_max_hz", 4.45e9))
     )
-    default_qam_order = int(get_active_config_value("qam_evm", "qam_order", 64))
+    default_qam_order = int(get_input_config_value("qam_evm", "qam_order", 64))
     default_peak_amplitude = float(
-        get_active_config_value("qam_evm", "peak_amplitude", get_active_config_value("behavior", "peak_amplitude", 0.8))
+        get_input_config_value("qam_evm", "peak_amplitude", get_active_config_value("behavior", "peak_amplitude", 0.8))
     )
-    default_seed = int(get_active_config_value("qam_evm", "seed", get_active_config_value("behavior", "seed", 12345) + 10000))
-    default_max_points = int(get_active_config_value("qam_evm", "max_constellation_points", 3000))
+    default_seed = int(get_input_config_value("qam_evm", "seed", get_active_config_value("behavior", "seed", 12345) + 10000))
+    default_max_points = int(get_input_config_value("qam_evm", "max_constellation_points", 3000))
 
     parser = argparse.ArgumentParser(description="Run minimal L1-08 QAM-loaded IF EVM simulation.")
     parser.add_argument("--run-dir", type=Path, default=None, help="Run data directory. Defaults to latest ready run.")
@@ -528,6 +538,7 @@ def main() -> None:
 
     run = run_qam_evm_sim(run_dir, config)
     save_qam_outputs(run)
+    output_dir = qam_evm_data_dir(run.run_dir)
     summary_path = update_run_summary(
         run.run_dir,
         "qam_evm_simulation",
@@ -555,12 +566,12 @@ def main() -> None:
             "after_float_fir_fitted_delay_samples": run.after_fir_metric.fitted_delay_samples,
             "after_fixed_fir_fitted_delay_samples": run.after_fir_fixed_metric.fitted_delay_samples,
             "outputs": {
-                "qam_input_iq_csv": run.run_dir / "qam_input_iq.csv",
-                "qam_after_h1_iq_csv": run.run_dir / "qam_after_h1_iq.csv",
-                "qam_after_fir_iq_csv": run.run_dir / "qam_after_fir_iq.csv",
-                "qam_after_fir_fixed_iq_csv": run.run_dir / "qam_after_fir_fixed_iq.csv",
-                "qam_evm_summary_csv": run.run_dir / "qam_evm_summary.csv",
-                "qam_constellation_points_csv": run.run_dir / "qam_constellation_points.csv",
+                "qam_input_iq_csv": output_dir / "qam_input_iq.csv",
+                "qam_after_h1_iq_csv": output_dir / "qam_after_h1_iq.csv",
+                "qam_after_fir_iq_csv": output_dir / "qam_after_fir_iq.csv",
+                "qam_after_fir_fixed_iq_csv": output_dir / "qam_after_fir_fixed_iq.csv",
+                "qam_evm_summary_csv": output_dir / "qam_evm_summary.csv",
+                "qam_constellation_points_csv": output_dir / "qam_constellation_points.csv",
                 "qam_evm_plot": run.results_dir / "l1_08_qam_evm.png",
             },
         },
@@ -582,8 +593,8 @@ def main() -> None:
     print(f"after_h1_magnitude_only_evm_percent: {run.after_h1_metric.magnitude_only_evm_percent:.6f}")
     print(f"after_float_fir_magnitude_only_evm_percent: {run.after_fir_metric.magnitude_only_evm_percent:.6f}")
     print(f"after_fixed_fir_magnitude_only_evm_percent: {run.after_fir_fixed_metric.magnitude_only_evm_percent:.6f}")
-    print(f"qam_evm_summary_csv: {run.run_dir / 'qam_evm_summary.csv'}")
-    print(f"qam_constellation_points_csv: {run.run_dir / 'qam_constellation_points.csv'}")
+    print(f"qam_evm_summary_csv: {output_dir / 'qam_evm_summary.csv'}")
+    print(f"qam_constellation_points_csv: {output_dir / 'qam_constellation_points.csv'}")
     print(f"plot: {run.results_dir / 'l1_08_qam_evm.png'}")
 
 

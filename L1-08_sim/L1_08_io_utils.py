@@ -10,6 +10,50 @@ from L1_08_paths import DATA_ROOT, SIM_ROOT
 
 PROJECT_ROOT = SIM_ROOT
 
+H1_DATA_DIR_NAME = "h1_full_combined_random"
+L1_08_H2_TARGET_DATA_DIR_NAME = "l1_08_h2_target"
+L1_08_H2_FIR_DESIGN_DATA_DIR_NAME = "l1_08_h2_fir_design"
+L1_08_H2_FIXED_POINT_DATA_DIR_NAME = "l1_08_h2_fixed_point"
+L1_08_BEHAVIOR_DATA_DIR_NAME = "l1_08_behavior"
+L1_08_QAM_EVM_DATA_DIR_NAME = "l1_08_qam_evm"
+
+STAGE_DATA_DIR_NAMES = {
+    H1_DATA_DIR_NAME,
+    L1_08_H2_TARGET_DATA_DIR_NAME,
+    L1_08_H2_FIR_DESIGN_DATA_DIR_NAME,
+    L1_08_H2_FIXED_POINT_DATA_DIR_NAME,
+    L1_08_BEHAVIOR_DATA_DIR_NAME,
+    L1_08_QAM_EVM_DATA_DIR_NAME,
+}
+
+
+def h1_data_dir(run_dir: Path) -> Path:
+    return run_dir / H1_DATA_DIR_NAME
+
+
+def h2_target_data_dir(run_dir: Path) -> Path:
+    return run_dir / L1_08_H2_TARGET_DATA_DIR_NAME
+
+
+def h2_fir_design_data_dir(run_dir: Path) -> Path:
+    return run_dir / L1_08_H2_FIR_DESIGN_DATA_DIR_NAME
+
+
+def h2_fixed_point_data_dir(run_dir: Path) -> Path:
+    return run_dir / L1_08_H2_FIXED_POINT_DATA_DIR_NAME
+
+
+def behavior_data_dir(run_dir: Path) -> Path:
+    return run_dir / L1_08_BEHAVIOR_DATA_DIR_NAME
+
+
+def qam_evm_data_dir(run_dir: Path) -> Path:
+    return run_dir / L1_08_QAM_EVM_DATA_DIR_NAME
+
+
+def run_dir_from_data_path(path: Path) -> Path:
+    return path.parent.parent if path.parent.name in STAGE_DATA_DIR_NAMES else path.parent
+
 
 @dataclass(frozen=True)
 class H1Magnitude:
@@ -29,14 +73,14 @@ class H1Phase:
 def find_latest_ready_run(data_root: Path = DATA_ROOT) -> Path:
     candidates: list[Path] = []
     required_files = [
-        "magnitude_combined.csv",
-        "phase_combined.csv",
-        "h2_fir_coefficients.csv",
-        "h2_fir_coefficients_fixed.csv",
+        Path(H1_DATA_DIR_NAME) / "magnitude_combined.csv",
+        Path(H1_DATA_DIR_NAME) / "phase_combined.csv",
+        Path(L1_08_H2_FIR_DESIGN_DATA_DIR_NAME) / "h2_fir_coefficients.csv",
+        Path(L1_08_H2_FIXED_POINT_DATA_DIR_NAME) / "h2_fir_coefficients_fixed.csv",
     ]
 
     for run_dir in data_root.glob("h1_full_combined_random_*"):
-        if all((run_dir / file_name).is_file() for file_name in required_files):
+        if all((run_dir / file_path).is_file() for file_path in required_files):
             candidates.append(run_dir)
 
     candidates = sorted(candidates, key=lambda path: path.stat().st_mtime, reverse=True)

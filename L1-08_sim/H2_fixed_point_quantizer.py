@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 
 from H2_fir_designer import load_h2_target_csv
 from L1_08_config import get_active_config_value, get_common_config_value
+from L1_08_io_utils import h2_fixed_point_data_dir, h2_target_data_dir, run_dir_from_data_path
 from L1_08_run_summary import update_run_summary
 from L1_08_signal_utils import evaluate_fir_response
 
@@ -102,7 +103,7 @@ class FixedPointResponse:
 
 def find_latest_coefficients_csv() -> Path:
     candidates = sorted(
-        (DATA_ROOT).glob("h1_full_combined_random_*/h2_fir_coefficients.csv"),
+        (DATA_ROOT).glob("h1_full_combined_random_*/l1_08_h2_fir_design/h2_fir_coefficients.csv"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -116,20 +117,20 @@ def find_latest_coefficients_csv() -> Path:
 
 
 def default_target_csv(coefficients_csv: Path) -> Path:
-    return coefficients_csv.parent / "h2_target.csv"
+    return h2_target_data_dir(run_dir_from_data_path(coefficients_csv)) / "h2_target.csv"
 
 
 def default_output_csv(coefficients_csv: Path) -> Path:
-    return coefficients_csv.parent / "h2_fir_coefficients_fixed.csv"
+    return h2_fixed_point_data_dir(run_dir_from_data_path(coefficients_csv)) / "h2_fir_coefficients_fixed.csv"
 
 
 def default_response_csv(coefficients_csv: Path) -> Path:
-    return coefficients_csv.parent / "h2_fixed_point_response.csv"
+    return h2_fixed_point_data_dir(run_dir_from_data_path(coefficients_csv)) / "h2_fixed_point_response.csv"
 
 
 def default_plot_path(coefficients_csv: Path) -> Path:
-    run_name = coefficients_csv.parent.name
-    return RESULTS_ROOT / run_name / "h2_fixed_point_quantization.png"
+    run_name = run_dir_from_data_path(coefficients_csv).name
+    return RESULTS_ROOT / run_name / "l1_08_h2_fixed_point" / "h2_fixed_point_quantization.png"
 
 
 def load_coefficients_csv(input_csv: Path) -> np.ndarray:
@@ -336,13 +337,13 @@ def parse_args() -> argparse.Namespace:
         "--coefficients-csv",
         type=Path,
         default=None,
-        help="Input float coefficients CSV. Defaults to latest data/*/h2_fir_coefficients.csv.",
+        help="Input float coefficients CSV. Defaults to latest data/*/l1_08_h2_fir_design/h2_fir_coefficients.csv.",
     )
     parser.add_argument(
         "--target-csv",
         type=Path,
         default=None,
-        help="Input h2_target.csv. Defaults to h2_target.csv next to coefficients CSV.",
+        help="Input h2_target.csv. Defaults to data/<run>/l1_08_h2_target/h2_target.csv.",
     )
     parser.add_argument(
         "--fs-hz",
@@ -378,7 +379,7 @@ def parse_args() -> argparse.Namespace:
         "--plot",
         type=Path,
         default=None,
-        help="Output comparison plot. Defaults to results/<run_name>/h2_fixed_point_quantization.png.",
+        help="Output comparison plot. Defaults to results/<run_name>/l1_08_h2_fixed_point/h2_fixed_point_quantization.png.",
     )
     return parser.parse_args()
 
@@ -399,8 +400,9 @@ def main() -> None:
     save_quantized_coefficients_csv(quantized, output_csv)
     save_response_csv(response, response_csv)
     plot_fixed_point_response(response, fixed_config, plot_path)
+    run_dir = run_dir_from_data_path(coefficients_csv)
     summary_path = update_run_summary(
-        coefficients_csv.parent,
+        run_dir,
         "fixed_point_coefficient_quantization",
         {
             "coefficients_csv": coefficients_csv,

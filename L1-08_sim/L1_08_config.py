@@ -10,7 +10,6 @@ PROFILE_ENV_VAR = "L1_08_PROFILE"
 SEED_CASE_ENV_VAR = "L1_08_SEED_CASE"
 H1_SEED_ENV_VAR = "L1_08_H1_SEED"
 BEHAVIOR_SEED_ENV_VAR = "L1_08_BEHAVIOR_SEED"
-QAM_SEED_ENV_VAR = "L1_08_QAM_SEED"
 
 
 @lru_cache(maxsize=4)
@@ -105,7 +104,6 @@ def _apply_seed_env_overrides(config: dict[str, Any]) -> None:
     for section_name, env_var in [
         ("h1", H1_SEED_ENV_VAR),
         ("behavior", BEHAVIOR_SEED_ENV_VAR),
-        ("qam_evm", QAM_SEED_ENV_VAR),
     ]:
         env_value = os.environ.get(env_var)
         if env_value is None or env_value.strip() == "":

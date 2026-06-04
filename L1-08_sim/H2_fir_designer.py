@@ -18,6 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from L1_08_config import get_active_config_value, get_common_config_value
+from L1_08_io_utils import h2_fir_design_data_dir, run_dir_from_data_path
 from L1_08_run_summary import update_run_summary
 from L1_08_signal_utils import evaluate_fir_response
 
@@ -164,7 +165,7 @@ def load_h2_target_csv(input_csv: Path) -> H2TargetData:
 
 def find_latest_h2_target_csv() -> Path:
     candidates = sorted(
-        (DATA_ROOT).glob("h1_full_combined_random_*/h2_target.csv"),
+        (DATA_ROOT).glob("h1_full_combined_random_*/l1_08_h2_target/h2_target.csv"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -177,16 +178,16 @@ def find_latest_h2_target_csv() -> Path:
 
 
 def default_coefficients_csv(input_csv: Path) -> Path:
-    return input_csv.parent / "h2_fir_coefficients.csv"
+    return h2_fir_design_data_dir(run_dir_from_data_path(input_csv)) / "h2_fir_coefficients.csv"
 
 
 def default_response_csv(input_csv: Path) -> Path:
-    return input_csv.parent / "h2_actual_response.csv"
+    return h2_fir_design_data_dir(run_dir_from_data_path(input_csv)) / "h2_actual_response.csv"
 
 
 def default_plot_path(input_csv: Path) -> Path:
-    run_name = input_csv.parent.name
-    return RESULTS_ROOT / run_name / "h2_fir_design.png"
+    run_name = run_dir_from_data_path(input_csv).name
+    return RESULTS_ROOT / run_name / "l1_08_h2_fir_design" / "h2_fir_design.png"
 
 
 def save_coefficients_csv(design: H2FirDesign, output_csv: Path) -> None:
@@ -267,7 +268,7 @@ def parse_args() -> argparse.Namespace:
         "--input-csv",
         type=Path,
         default=None,
-        help="Path to h2_target.csv. Defaults to latest data/*/h2_target.csv.",
+        help="Path to h2_target.csv. Defaults to latest data/*/l1_08_h2_target/h2_target.csv.",
     )
     parser.add_argument(
         "--fs-hz",
@@ -294,7 +295,7 @@ def parse_args() -> argparse.Namespace:
         "--coefficients-csv",
         type=Path,
         default=None,
-        help="Output coefficients CSV. Defaults to h2_fir_coefficients.csv next to input CSV.",
+        help="Output coefficients CSV. Defaults to data/<run>/l1_08_h2_fir_design/h2_fir_coefficients.csv.",
     )
     parser.add_argument(
         "--response-csv",
@@ -306,7 +307,7 @@ def parse_args() -> argparse.Namespace:
         "--plot",
         type=Path,
         default=None,
-        help="Output plot path. Defaults to results/<run_name>/h2_fir_design.png.",
+        help="Output plot path. Defaults to results/<run_name>/l1_08_h2_fir_design/h2_fir_design.png.",
     )
     return parser.parse_args()
 
@@ -325,8 +326,9 @@ def main() -> None:
     save_coefficients_csv(design, coefficients_csv)
     save_response_csv(design, response_csv)
     plot_design(design, plot_path)
+    run_dir = run_dir_from_data_path(input_csv)
     summary_path = update_run_summary(
-        coefficients_csv.parent,
+        run_dir,
         "h2_fir_design",
         {
             "input_csv": input_csv,
