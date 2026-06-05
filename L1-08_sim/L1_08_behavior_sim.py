@@ -48,7 +48,7 @@ class BehaviorConfig:
 @dataclass(frozen=True)
 class BehaviorRun:
     run_dir: Path
-    results_dir: Path
+    graph_dir: Path
     config: BehaviorConfig
     fir_tap_num: int
     tone_bins: np.ndarray
@@ -200,7 +200,7 @@ def run_behavior_sim(run_dir: Path, config: BehaviorConfig) -> BehaviorRun:
 
     return BehaviorRun(
         run_dir=run_dir,
-        results_dir=RESULTS_ROOT / run_dir.name / "l1_08_behavior",
+        graph_dir=RESULTS_ROOT / run_dir.name / "l1_08_behavior",
         config=config,
         fir_tap_num=coeffs.size,
         tone_bins=tone_bins,
@@ -335,10 +335,10 @@ def save_behavior_outputs(run: BehaviorRun) -> None:
     save_iq_csv(output_dir / "after_fir_iq.csv", run.after_fir_iq, run.config.fs_hz)
     save_iq_csv(output_dir / "after_fir_fixed_iq.csv", run.after_fir_fixed_iq, run.config.fs_hz)
     save_tone_tables(run)
-    plot_behavior(run, run.results_dir / "l1_08_behavior_multitone.png")
-    plot_phase_combined(run, run.results_dir / "l1_08_behavior_phase_combined.png")
+    plot_behavior(run, run.graph_dir / "l1_08_behavior_multitone.png")
+    plot_phase_combined(run, run.graph_dir / "l1_08_behavior_phase_combined.png")
     for stale_plot_name in ("l1_08_behavior_phase.png", "l1_08_behavior_group_delay.png"):
-        stale_plot_path = run.results_dir / stale_plot_name
+        stale_plot_path = run.graph_dir / stale_plot_name
         if stale_plot_path.exists():
             try:
                 stale_plot_path.unlink()
@@ -672,7 +672,7 @@ def main() -> None:
         "behavior_simulation",
         {
             "run_dir": run.run_dir,
-            "results_dir": run.results_dir,
+            "graph_dir": run.graph_dir,
             "fs_hz": run.config.fs_hz,
             "measurement_samples": run.config.measurement_samples,
             "settle_samples": run.config.settle_samples,
@@ -699,15 +699,15 @@ def main() -> None:
                 "after_fir_fixed_iq_csv": output_dir / "after_fir_fixed_iq.csv",
                 "multitone_frequencies_csv": output_dir / "multitone_frequencies.csv",
                 "tone_amplitude_csv": output_dir / "tone_amplitude_before_after.csv",
-                "magnitude_plot": run.results_dir / "l1_08_behavior_multitone.png",
-                "phase_combined_plot": run.results_dir / "l1_08_behavior_phase_combined.png",
+                "magnitude_plot": run.graph_dir / "l1_08_behavior_multitone.png",
+                "phase_combined_plot": run.graph_dir / "l1_08_behavior_phase_combined.png",
             },
         },
-        results_dir=run.results_dir,
+        graph_dir=run.graph_dir,
     )
 
     print(f"run_dir: {run.run_dir}")
-    print(f"results_dir: {run.results_dir}")
+    print(f"graph_dir: {run.graph_dir}")
     print(f"summary_json: {summary_path}")
     print(f"fs_hz: {run.config.fs_hz:.0f}")
     print(f"measurement_samples: {run.config.measurement_samples}")
@@ -725,8 +725,8 @@ def main() -> None:
     print(f"after_fir_iq_csv: {output_dir / 'after_fir_iq.csv'}")
     print(f"after_fir_fixed_iq_csv: {output_dir / 'after_fir_fixed_iq.csv'}")
     print(f"tone_amplitude_csv: {output_dir / 'tone_amplitude_before_after.csv'}")
-    print(f"plot: {run.results_dir / 'l1_08_behavior_multitone.png'}")
-    print(f"phase_combined_plot: {run.results_dir / 'l1_08_behavior_phase_combined.png'}")
+    print(f"plot: {run.graph_dir / 'l1_08_behavior_multitone.png'}")
+    print(f"phase_combined_plot: {run.graph_dir / 'l1_08_behavior_phase_combined.png'}")
 
 
 if __name__ == "__main__":

@@ -79,7 +79,7 @@ def find_latest_ready_run(data_root: Path = DATA_ROOT) -> Path:
         Path(L1_08_H2_FIXED_POINT_DATA_DIR_NAME) / "h2_fir_coefficients_fixed.csv",
     ]
 
-    for run_dir in data_root.glob("h1_full_combined_random_*"):
+    for run_dir in list(data_root.glob("full_combined_*")) + list(data_root.glob("h1_full_combined_random_*")):
         if all((run_dir / file_path).is_file() for file_path in required_files):
             candidates.append(run_dir)
 

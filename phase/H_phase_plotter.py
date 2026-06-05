@@ -22,9 +22,9 @@ class HPhaseData:
 
 
 class HPhasePlotter:
-    def __init__(self, data_dir: Path | None = None, results_dir: Path | None = None) -> None:
+    def __init__(self, data_dir: Path | None = None, graph_dir: Path | None = None) -> None:
         self.data_dir = data_dir or PROJECT_ROOT / "data"
-        self.results_dir = results_dir or PROJECT_ROOT / "results"
+        self.graph_dir = graph_dir or PROJECT_ROOT / "graph"
 
     def load_csv(self, csv_path: Path) -> HPhaseData:
         freq_hz: list[float] = []
@@ -43,8 +43,8 @@ class HPhasePlotter:
         return HPhaseData(name=csv_path.stem, freq_hz=np.array(freq_hz), phase_rad=phase)
 
     def plot(self, data: HPhaseData, output_path: Path | None = None) -> Path:
-        self.results_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_path or self.results_dir / f"{data.name}_phase.png"
+        self.graph_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_path or self.graph_dir / f"{data.name}_phase.png"
 
         fig, ax = plt.subplots(figsize=(9, 5))
         ax.plot(data.freq_hz, data.phase_rad, linewidth=1.8)

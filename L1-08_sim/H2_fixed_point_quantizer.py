@@ -103,7 +103,8 @@ class FixedPointResponse:
 
 def find_latest_coefficients_csv() -> Path:
     candidates = sorted(
-        (DATA_ROOT).glob("h1_full_combined_random_*/l1_08_h2_fir_design/h2_fir_coefficients.csv"),
+        list(DATA_ROOT.glob("full_combined_*/l1_08_h2_fir_design/h2_fir_coefficients.csv"))
+        + list(DATA_ROOT.glob("h1_full_combined_random_*/l1_08_h2_fir_design/h2_fir_coefficients.csv")),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -430,7 +431,7 @@ def main() -> None:
             "ripple_after_fixed_db": response.ripple_after_fixed_db(),
             "meets_0p1db_target_fixed": response.ripple_after_fixed_db() <= 0.1,
         },
-        results_dir=plot_path.parent,
+        graph_dir=plot_path.parent,
     )
 
     print(f"coefficients_csv: {coefficients_csv}")

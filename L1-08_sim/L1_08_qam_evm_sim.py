@@ -59,7 +59,7 @@ class EvmMetric:
 @dataclass(frozen=True)
 class QamEvmRun:
     run_dir: Path
-    results_dir: Path
+    graph_dir: Path
     config: QamEvmConfig
     qam_bins: np.ndarray
     qam_freq_hz: np.ndarray
@@ -250,7 +250,7 @@ def run_qam_evm_sim(run_dir: Path, config: QamEvmConfig) -> QamEvmRun:
 
     return QamEvmRun(
         run_dir=run_dir,
-        results_dir=RESULTS_ROOT / run_dir.name / "l1_08_qam_evm",
+        graph_dir=RESULTS_ROOT / run_dir.name / "l1_08_qam_evm",
         config=config,
         qam_bins=qam_bins,
         qam_freq_hz=qam_freq_hz,
@@ -470,7 +470,7 @@ def save_qam_outputs(run: QamEvmRun) -> None:
     save_iq_csv(output_dir / "qam_after_fir_fixed_iq.csv", run.after_fir_fixed_iq, run.config.fs_hz)
     save_evm_summary_csv(run, output_dir / "qam_evm_summary.csv")
     save_constellation_csv(run, output_dir / "qam_constellation_points.csv")
-    plot_qam_evm(run, run.results_dir / "l1_08_qam_evm.png")
+    plot_qam_evm(run, run.graph_dir / "l1_08_qam_evm.png")
 
 
 def parse_args() -> argparse.Namespace:
@@ -544,7 +544,7 @@ def main() -> None:
         "qam_evm_simulation",
         {
             "run_dir": run.run_dir,
-            "results_dir": run.results_dir,
+            "graph_dir": run.graph_dir,
             "fs_hz": run.config.fs_hz,
             "samples": run.config.samples,
             "freq_min_hz": run.qam_freq_hz[0],
@@ -572,14 +572,14 @@ def main() -> None:
                 "qam_after_fir_fixed_iq_csv": output_dir / "qam_after_fir_fixed_iq.csv",
                 "qam_evm_summary_csv": output_dir / "qam_evm_summary.csv",
                 "qam_constellation_points_csv": output_dir / "qam_constellation_points.csv",
-                "qam_evm_plot": run.results_dir / "l1_08_qam_evm.png",
+                "qam_evm_plot": run.graph_dir / "l1_08_qam_evm.png",
             },
         },
-        results_dir=run.results_dir,
+        graph_dir=run.graph_dir,
     )
 
     print(f"run_dir: {run.run_dir}")
-    print(f"results_dir: {run.results_dir}")
+    print(f"graph_dir: {run.graph_dir}")
     print(f"summary_json: {summary_path}")
     print(f"fs_hz: {run.config.fs_hz:.0f}")
     print(f"samples: {run.config.samples}")
@@ -595,7 +595,7 @@ def main() -> None:
     print(f"after_fixed_fir_magnitude_only_evm_percent: {run.after_fir_fixed_metric.magnitude_only_evm_percent:.6f}")
     print(f"qam_evm_summary_csv: {output_dir / 'qam_evm_summary.csv'}")
     print(f"qam_constellation_points_csv: {output_dir / 'qam_constellation_points.csv'}")
-    print(f"plot: {run.results_dir / 'l1_08_qam_evm.png'}")
+    print(f"plot: {run.graph_dir / 'l1_08_qam_evm.png'}")
 
 
 if __name__ == "__main__":

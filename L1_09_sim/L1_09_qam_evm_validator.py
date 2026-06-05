@@ -14,7 +14,7 @@ L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 L1_08_ROOT = REPO_ROOT / "L1-08_sim"
 DATA_ROOT = REPO_ROOT / "data"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_fix_matplotlib" / f"pid_{os.getpid()}"
 
 for import_path in (L1_08_ROOT, L1_09_ROOT, REPO_ROOT):
@@ -510,7 +510,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Input allpass_response.csv used to recover the design frequency band.",
     )
-    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to results/<run>/l1_09_fix_qam_evm_iir_<mode>.")
+    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to graph/<run>/l1_09_fix_qam_evm_iir_<mode>.")
     parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
     parser.add_argument("--iir-settle-blocks", type=int, default=default_iir_settle_blocks, help=f"Repeated input blocks used before measuring the final block. Default from L1_09_experiment_config.json: {default_iir_settle_blocks}.")
     parser.add_argument("--samples", type=int, default=default_samples, help=f"FFT/block sample count. Default: {default_samples}.")
@@ -583,7 +583,7 @@ def main() -> None:
                 "plot": run.output_dir / "l1_09_qam_evm.png",
             },
         },
-        results_dir=run.output_dir,
+        graph_dir=run.output_dir,
     )
 
     print(f"run_dir: {run.run_dir}")

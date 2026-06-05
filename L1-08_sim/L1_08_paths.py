@@ -6,7 +6,7 @@ from pathlib import Path
 SIM_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = SIM_ROOT.parent
 DATA_ROOT = REPO_ROOT / "data"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 MPLCONFIG_ROOT = SIM_ROOT / ".matplotlib"
 
 

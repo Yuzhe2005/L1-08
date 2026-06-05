@@ -165,7 +165,7 @@ together.csv = magnitude_combined + phase_combined
 
 ## 6. Seed case 的含义
 
-当前 `sweep_test/config.json` 中配置了 3 组 seed case：
+当前 `sweep_test_config.json` 中配置了 3 组 seed case：
 
 | Seed case | H1 seed | Behavior seed | QAM seed |
 |---|---:|---:|---:|
@@ -490,13 +490,13 @@ L1-08 FIR magnitude equalization 的算法流程是合理的；
 运行 sweep：
 
 ```powershell
-& 'C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\668082bd16c2c5ea\L1-08_sim\.venv\Scripts\python.exe' sweep_test/run_sweep.py --config sweep_test/config.json
+& 'C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\668082bd16c2c5ea\L1-08_sim\.venv\Scripts\python.exe' sweep_test/run_sweep.py --config sweep_test_config.json
 ```
 
 分析 sweep：
 
 ```powershell
-& 'C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\668082bd16c2c5ea\L1-08_sim\.venv\Scripts\python.exe' sweep_test/analyze_sweep_results.py --config sweep_test/config.json
+& 'C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\668082bd16c2c5ea\L1-08_sim\.venv\Scripts\python.exe' sweep_test/analyze_sweep_results.py --config sweep_test_config.json
 ```
 
 主要输出：

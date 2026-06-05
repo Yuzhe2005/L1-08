@@ -45,7 +45,7 @@ Rigol/
 │   ├── L1_08_run_summary.py
 │   ├── run_all_pipeline.py
 │   ├── data/
-│   ├── results/
+│   ├── graph/
 │   ├── magnitude/
 │   └── phase/
 ├── sweep_test/
@@ -66,8 +66,8 @@ Rigol/
 | `L1_08_experiment_config.json` | 单次 pipeline 的主配置文件 |
 | `L1-08_sim/run_all_pipeline.py` | 一键运行完整 L1-08 pipeline |
 | `L1-08_sim/data/` | 单次 pipeline 的 CSV/JSON 输出 |
-| `L1-08_sim/results/` | 单次 pipeline 的 PNG 图像输出 |
-| `sweep_test/config.json` | sweep test 的配置文件 |
+| `graph/` | 单次 pipeline 的 PNG 图像输出 |
+| `sweep_test_config.json` | sweep test 的配置文件 |
 | `sweep_test/run_sweep.py` | 批量参数扫描程序 |
 | `sweep_test/analyze_sweep_results.py` | sweep 结果分析程序 |
 | `sweep_result/` | sweep 结果保存目录 |
@@ -153,14 +153,14 @@ L1_08_experiment_config.json
 实际当前 sweep test 运行时使用的是：
 
 ```text
-sweep_test/config.json
+sweep_test_config.json
 ```
 
 也就是说：
 
 ```text
 单次 pipeline 看 L1_08_experiment_config.json 的 active
-sweep test 看 sweep_test/config.json
+sweep test 看 sweep_test_config.json
 ```
 
 ---
@@ -229,17 +229,17 @@ h1_full_combined_random_YYYYMMDD_HHMMSS
 
 ```text
 L1-08_sim/data/<run_name>/
-L1-08_sim/results/<run_name>/
+graph/<run_name>/
 ```
 
 其中：
 
 ```text
 data/<run_name>/    保存 CSV 和 JSON
-results/<run_name>/ 保存 PNG 图像
+graph/<run_name>/ 保存 PNG 图像
 ```
 
-当前如果 `L1-08_sim/data/` 和 `L1-08_sim/results/` 是空的，这是正常的，因为之前做过清理。重新运行 `run_all_pipeline.py` 后会重新生成。
+当前如果 `L1-08_sim/data/` 和 `graph/` 是空的，这是正常的，因为之前做过清理。重新运行 `run_all_pipeline.py` 后会重新生成。
 
 ---
 
@@ -284,8 +284,8 @@ L1-08_sim/data/<run_name>/magnitude_combined.csv
 L1-08_sim/data/<run_name>/phase_combined.csv
 L1-08_sim/data/<run_name>/together.csv
 L1-08_sim/data/<run_name>/run_summary.json
-L1-08_sim/results/<run_name>/magnitude_combined_magnitude.png
-L1-08_sim/results/<run_name>/phase_combined_phase.png
+graph/<run_name>/magnitude_combined_magnitude.png
+graph/<run_name>/phase_combined_phase.png
 ```
 
 文件含义：
@@ -339,7 +339,7 @@ L1-08_sim/H2_target_generator.py
 
 ```text
 L1-08_sim/data/<run_name>/h2_target.csv
-L1-08_sim/results/<run_name>/h2_target.png
+graph/<run_name>/h2_target.png
 ```
 
 报告中用途：
@@ -380,7 +380,7 @@ L1-08_sim/data/<run_name>/h2_target.csv
 ```text
 L1-08_sim/data/<run_name>/h2_fir_coefficients.csv
 L1-08_sim/data/<run_name>/h2_actual_response.csv
-L1-08_sim/results/<run_name>/h2_fir_design.png
+graph/<run_name>/h2_fir_design.png
 ```
 
 文件含义：
@@ -445,7 +445,7 @@ L1-08_sim/data/<run_name>/h2_target.csv
 ```text
 L1-08_sim/data/<run_name>/h2_fir_coefficients_fixed.csv
 L1-08_sim/data/<run_name>/h2_fixed_point_response.csv
-L1-08_sim/results/<run_name>/h2_fixed_point_quantization.png
+graph/<run_name>/h2_fixed_point_quantization.png
 ```
 
 文件含义：
@@ -521,8 +521,8 @@ L1-08_sim/data/<run_name>/after_fir_iq.csv
 L1-08_sim/data/<run_name>/after_fir_fixed_iq.csv
 L1-08_sim/data/<run_name>/multitone_frequencies.csv
 L1-08_sim/data/<run_name>/tone_amplitude_before_after.csv
-L1-08_sim/results/<run_name>/l1_08_behavior_multitone.png
-L1-08_sim/results/<run_name>/l1_08_behavior_phase_combined.png
+graph/<run_name>/l1_08_behavior_multitone.png
+graph/<run_name>/l1_08_behavior_phase_combined.png
 ```
 
 文件含义：
@@ -595,7 +595,7 @@ L1-08_sim/data/<run_name>/qam_after_fir_iq.csv
 L1-08_sim/data/<run_name>/qam_after_fir_fixed_iq.csv
 L1-08_sim/data/<run_name>/qam_evm_summary.csv
 L1-08_sim/data/<run_name>/qam_constellation_points.csv
-L1-08_sim/results/<run_name>/l1_08_qam_evm.png
+graph/<run_name>/l1_08_qam_evm.png
 ```
 
 重点指标：
@@ -635,7 +635,7 @@ L1-08_sim/data/<run_name>/run_summary.json
 ```text
 run_name
 data_dir
-results_dir
+graph_dir
 stages
   h1_generation
   h2_target_generation
@@ -688,7 +688,7 @@ stages
 sweep 配置文件：
 
 ```text
-sweep_test/config.json
+sweep_test_config.json
 ```
 
 当前 sweep 参数：
@@ -902,12 +902,12 @@ python L1-08_sim\run_all_pipeline.py
 
 ```text
 L1-08_sim/data/<run_name>/run_summary.json
-L1-08_sim/results/<run_name>/*.png
+graph/<run_name>/*.png
 ```
 
 ### 13.2 扫描多个参数组合
 
-1. 修改 `sweep_test/config.json`。
+1. 修改 `sweep_test_config.json`。
 2. 运行 dry run 检查 combo：
 
 ```powershell
@@ -951,7 +951,7 @@ python sweep_test\run_sweep.py
 python sweep_test\analyze_sweep_results.py
 ```
 
-因为 `sweep_test/config.json` 中：
+因为 `sweep_test_config.json` 中：
 
 ```json
 "group_by_current_seed": true

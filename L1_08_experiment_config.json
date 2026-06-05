@@ -4,7 +4,7 @@
       "fs_hz": 12000000000.0
     },
     "h1": {
-      "seed": 286476255
+      "seed": 911204371
     },
     "h1_random_model": {
       "frequency_grid": {
@@ -97,7 +97,7 @@
       "tone_min_hz": 3550000000.0,
       "tone_max_hz": 4450000000.0,
       "peak_amplitude": 0.8,
-      "seed": 1813889189
+      "seed": 1401186327
     },
     "fixed_point": {
       "coeff_total_bits": 16,

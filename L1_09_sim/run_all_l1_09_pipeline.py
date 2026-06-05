@@ -10,7 +10,7 @@ L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 L1_08_ROOT = REPO_ROOT / "L1-08_sim"
 DATA_ROOT = REPO_ROOT / "data"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 
 for import_path in (L1_08_ROOT, L1_09_ROOT, REPO_ROOT):
     import_text = str(import_path)
@@ -19,6 +19,7 @@ for import_path in (L1_08_ROOT, L1_09_ROOT, REPO_ROOT):
 
 from L1_08_io_utils import find_latest_ready_run, h1_data_dir, h2_fixed_point_data_dir
 from L1_08_run_summary import update_run_summary
+from L1_09_config import get_l1_09_config_value
 
 
 @dataclass(frozen=True)
@@ -75,13 +76,24 @@ def validation_modes(mode: str) -> list[str]:
     return [mode]
 
 
-def build_stages(run_dir: Path, modes: list[str], skip_evm_lin: bool, skip_qam_evm: bool) -> list[PipelineStage]:
+def build_stages(
+    run_dir: Path,
+    modes: list[str],
+    skip_evm_lin: bool,
+    skip_qam_evm: bool,
+    allpass_sections: int,
+    allpass_margin_ns: float | None,
+    allpass_smooth_window: int,
+    coeff_total_bits: int,
+    coeff_frac_bits: int,
+) -> list[PipelineStage]:
     run_name = run_dir.name
-    group_delay_dir = RESULTS_ROOT / run_name / "l1_09_fix_group_delay"
+    group_delay_data_dir = DATA_ROOT / run_name / "l1_09_fix_group_delay"
+    group_delay_graph_dir = RESULTS_ROOT / run_name / "l1_09_fix_group_delay"
     allpass_dir = RESULTS_ROOT / run_name / "l1_09_fix_allpass_iir_fs"
     fixed_dir = RESULTS_ROOT / run_name / "l1_09_fix_allpass_iir_fixed"
 
-    group_delay_csv = group_delay_dir / "group_delay_analysis.csv"
+    group_delay_csv = group_delay_data_dir / "group_delay_analysis.csv"
     float_coefficients_csv = allpass_dir / "allpass_coefficients.csv"
     float_response_csv = allpass_dir / "allpass_response.csv"
     fixed_coefficients_csv = fixed_dir / "allpass_coefficients_fixed.csv"
@@ -90,15 +102,19 @@ def build_stages(run_dir: Path, modes: list[str], skip_evm_lin: bool, skip_qam_e
     stages = [
         PipelineStage(
             name="l1_09_fix_group_delay_analysis",
-            purpose="Analyze H1 phase and group delay for the selected L1-08 run.",
+            purpose="Analyze pre-L1-09 phase/group delay from H1 cascaded with the L1-08 fixed FIR.",
             command=[
                 sys.executable,
                 "-u",
                 str(script_path("L1_09_group_delay_analyzer.py")),
-                "--input-csv",
+                "--h1-csv",
                 str(h1_data_dir(run_dir) / "together.csv"),
-                "--output-dir",
-                str(group_delay_dir),
+                "--h2-fixed-response-csv",
+                str(h2_fixed_point_data_dir(run_dir) / "h2_fixed_point_response.csv"),
+                "--data-dir",
+                str(group_delay_data_dir),
+                "--graph-dir",
+                str(group_delay_graph_dir),
             ],
         ),
         PipelineStage(
@@ -112,6 +128,15 @@ def build_stages(run_dir: Path, modes: list[str], skip_evm_lin: bool, skip_qam_e
                 str(group_delay_csv),
                 "--output-dir",
                 str(allpass_dir),
+                "--sections",
+                str(allpass_sections),
+                "--smooth-window",
+                str(allpass_smooth_window),
+                *(
+                    ["--margin-ns", f"{allpass_margin_ns:.12g}"]
+                    if allpass_margin_ns is not None
+                    else []
+                ),
             ],
         ),
         PipelineStage(
@@ -129,6 +154,10 @@ def build_stages(run_dir: Path, modes: list[str], skip_evm_lin: bool, skip_qam_e
                 str(float_response_csv),
                 "--output-dir",
                 str(fixed_dir),
+                "--coeff-total-bits",
+                str(coeff_total_bits),
+                "--coeff-frac-bits",
+                str(coeff_frac_bits),
             ],
         ),
     ]
@@ -203,18 +232,53 @@ def run_stage(stage: PipelineStage, dry_run: bool) -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    default_sections = int(get_l1_09_config_value("allpass", "sections", 8))
+    default_margin_ns = get_l1_09_config_value("allpass", "margin_ns", None)
+    default_smooth_window = int(get_l1_09_config_value("allpass", "smooth_window", 31))
+    default_coeff_total_bits = int(get_l1_09_config_value("fixed_point", "coeff_total_bits", 18))
+    default_coeff_frac_bits = int(get_l1_09_config_value("fixed_point", "coeff_frac_bits", 15))
     parser = argparse.ArgumentParser(description="Run the full L1-09 fix pipeline on an existing completed L1-08 run.")
     parser.add_argument(
         "--run-dir",
         type=Path,
         default=None,
-        help="Completed L1-08 data run directory. Defaults to latest ready data/h1_full_combined_random_* run.",
+        help="Completed L1-08 data run directory. Defaults to latest ready data/full_combined_* run.",
     )
     parser.add_argument(
         "--validation-coeff-mode",
         choices=("float", "fixed", "both"),
         default="both",
         help="Which all-pass coefficient mode to use for EVM_LIN and QAM validation. Default: both.",
+    )
+    parser.add_argument(
+        "--sections",
+        type=int,
+        default=default_sections,
+        help=f"Number of second-order all-pass sections. Default from L1_09_experiment_config.json: {default_sections}.",
+    )
+    parser.add_argument(
+        "--margin-ns",
+        type=float,
+        default=default_margin_ns,
+        help="Delay margin above max group delay. Default comes from L1_09_experiment_config.json.",
+    )
+    parser.add_argument(
+        "--smooth-window",
+        type=int,
+        default=default_smooth_window,
+        help=f"Odd smoothing window for all-pass fitting. Default: {default_smooth_window}.",
+    )
+    parser.add_argument(
+        "--coeff-total-bits",
+        type=int,
+        default=default_coeff_total_bits,
+        help=f"L1-09 all-pass fixed-point coefficient total bits. Default: {default_coeff_total_bits}.",
+    )
+    parser.add_argument(
+        "--coeff-frac-bits",
+        type=int,
+        default=default_coeff_frac_bits,
+        help=f"L1-09 all-pass fixed-point coefficient fractional bits. Default: {default_coeff_frac_bits}.",
     )
     parser.add_argument(
         "--skip-evm-lin",
@@ -245,12 +309,22 @@ def main() -> None:
         modes=modes,
         skip_evm_lin=args.skip_evm_lin,
         skip_qam_evm=args.skip_qam_evm,
+        allpass_sections=args.sections,
+        allpass_margin_ns=args.margin_ns,
+        allpass_smooth_window=args.smooth_window,
+        coeff_total_bits=args.coeff_total_bits,
+        coeff_frac_bits=args.coeff_frac_bits,
     )
 
     print("L1-09 fix full pipeline", flush=True)
     print(f"repo_root: {REPO_ROOT}", flush=True)
     print(f"run_dir: {run_dir}", flush=True)
     print(f"validation_coeff_mode: {args.validation_coeff_mode}", flush=True)
+    print(f"allpass_sections: {args.sections}", flush=True)
+    print(f"allpass_margin_ns: {args.margin_ns}", flush=True)
+    print(f"allpass_smooth_window: {args.smooth_window}", flush=True)
+    print(f"coeff_total_bits: {args.coeff_total_bits}", flush=True)
+    print(f"coeff_frac_bits: {args.coeff_frac_bits}", flush=True)
     print(f"stage_count: {len(stages)}", flush=True)
     print(f"dry_run: {args.dry_run}", flush=True)
 
@@ -263,9 +337,14 @@ def main() -> None:
             "l1_09_fix_full_pipeline",
             {
                 "run_dir": run_dir,
-                "results_dir": RESULTS_ROOT / run_dir.name,
+                "graph_dir": RESULTS_ROOT / run_dir.name,
                 "validation_coeff_mode": args.validation_coeff_mode,
                 "validation_modes": modes,
+                "allpass_sections": args.sections,
+                "allpass_margin_ns": args.margin_ns,
+                "allpass_smooth_window": args.smooth_window,
+                "coeff_total_bits": args.coeff_total_bits,
+                "coeff_frac_bits": args.coeff_frac_bits,
                 "skip_evm_lin": args.skip_evm_lin,
                 "skip_qam_evm": args.skip_qam_evm,
                 "stage_count": len(stages),
@@ -278,7 +357,7 @@ def main() -> None:
                     for stage in stages
                 ],
             },
-            results_dir=RESULTS_ROOT / run_dir.name,
+            graph_dir=RESULTS_ROOT / run_dir.name,
         )
         print(f"\nsummary_json: {summary_path}", flush=True)
 

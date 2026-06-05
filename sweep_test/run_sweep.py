@@ -5,11 +5,11 @@ from existing_pipeline_runner import ExistingPipelineComboRunner, write_sweep_su
 from sweep_config import SweepSettings
 
 
-DEFAULT_CONFIG = Path(__file__).resolve().parent / "config.json"
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "sweep_test_config.json"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run L1-08 tap/regularization/fixed-point sweep.")
+    parser = argparse.ArgumentParser(description="Run full L1-08 + L1-09 bandwidth/seed/fixed-point sweep.")
     parser.add_argument(
         "--config",
         type=Path,
@@ -32,7 +32,8 @@ def main() -> None:
 
     print(f"config: {settings.config_path}")
     print(f"repo_root: {settings.repo_root}")
-    print(f"sim_dir: {settings.sim_dir}")
+    print(f"l1_08_sim_dir: {settings.l1_08_sim_dir}")
+    print(f"l1_09_sim_dir: {settings.l1_09_sim_dir}")
     print(f"output_dir: {sweep_dir}")
     print(f"combo_count: {len(combos)}")
 

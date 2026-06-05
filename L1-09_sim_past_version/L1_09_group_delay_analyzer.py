@@ -11,7 +11,7 @@ import numpy as np
 L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 DATA_ROOT = REPO_ROOT / "data"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 H1_DATA_DIR_NAME = "h1_full_combined_random"
 MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_matplotlib" / f"pid_{os.getpid()}"
 

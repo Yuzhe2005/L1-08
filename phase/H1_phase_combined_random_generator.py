@@ -31,7 +31,7 @@ class PhysicalPhaseConstraintConfig:
 class PhaseCombinedH1Run:
     run_name: str
     data_dir: Path
-    results_dir: Path
+    graph_dir: Path
     single_features: list[H1]
     combined: H1
     group_delay_mean_ns: float
@@ -51,9 +51,9 @@ class H1PhaseCombinedRandomGenerator:
         run_name = run_name or f"h1_phase_combined_random_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         project_root = Path(__file__).resolve().parents[1]
         data_dir = project_root / "data" / run_name
-        results_dir = project_root / "results" / run_name
+        graph_dir = project_root / "graph" / run_name
         data_dir.mkdir(parents=True, exist_ok=True)
-        results_dir.mkdir(parents=True, exist_ok=True)
+        graph_dir.mkdir(parents=True, exist_ok=True)
 
         features = [
             self._generate_feature("linear_phase_delay", H1LinearPhaseDelayRandomGenerator),
@@ -74,7 +74,7 @@ class H1PhaseCombinedRandomGenerator:
         return PhaseCombinedH1Run(
             run_name=run_name,
             data_dir=data_dir,
-            results_dir=results_dir,
+            graph_dir=graph_dir,
             single_features=features,
             combined=combined,
             group_delay_mean_ns=float(np.mean(group_delay_ns)),
@@ -138,7 +138,7 @@ def _enforce_positive_group_delay_phase(
 
 
 def plot_run(run: PhaseCombinedH1Run) -> list[Path]:
-    plotter = HPhasePlotter(results_dir=run.results_dir)
+    plotter = HPhasePlotter(graph_dir=run.graph_dir)
     csv_files = [run.data_dir / f"{feature.name}.csv" for feature in run.single_features]
     csv_files.append(run.data_dir / f"{run.combined.name}.csv")
     return [plotter.plot_csv(csv_path) for csv_path in csv_files]
@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     print(f"run_name: {run.run_name}")
     print(f"data_folder: {run.data_dir}")
-    print(f"results_folder: {run.results_dir}")
+    print(f"graph_folder: {run.graph_dir}")
     print("single_features:")
     for feature in run.single_features:
         print(

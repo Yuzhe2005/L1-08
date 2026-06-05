@@ -165,7 +165,8 @@ def load_h2_target_csv(input_csv: Path) -> H2TargetData:
 
 def find_latest_h2_target_csv() -> Path:
     candidates = sorted(
-        (DATA_ROOT).glob("h1_full_combined_random_*/l1_08_h2_target/h2_target.csv"),
+        list(DATA_ROOT.glob("full_combined_*/l1_08_h2_target/h2_target.csv"))
+        + list(DATA_ROOT.glob("h1_full_combined_random_*/l1_08_h2_target/h2_target.csv")),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -348,7 +349,7 @@ def main() -> None:
             "max_abs_coeff": np.max(np.abs(design.coefficients)),
             "coeff_symmetry_max_error": np.max(np.abs(design.coefficients - design.coefficients[::-1])),
         },
-        results_dir=plot_path.parent,
+        graph_dir=plot_path.parent,
     )
 
     print(f"input_csv: {input_csv}")

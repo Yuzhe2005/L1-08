@@ -13,7 +13,7 @@ L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 L1_08_ROOT = REPO_ROOT / "L1-08_sim"
 DATA_ROOT = REPO_ROOT / "data"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_matplotlib" / f"pid_{os.getpid()}"
 
 for import_path in (L1_08_ROOT, L1_09_ROOT, REPO_ROOT):

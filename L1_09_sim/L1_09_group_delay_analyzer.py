@@ -11,7 +11,7 @@ import numpy as np
 L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 DATA_ROOT = REPO_ROOT / "data"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 H1_DATA_DIR_NAME = "h1_full_combined_random"
 MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_fix_matplotlib" / f"pid_{os.getpid()}"
 
@@ -27,10 +27,13 @@ import matplotlib.pyplot as plt
 
 @dataclass(frozen=True)
 class GroupDelayAnalysis:
-    input_csv: Path
+    h1_csv: Path
+    h2_fixed_response_csv: Path
     run_name: str
     freq_hz: np.ndarray
-    phase_rad: np.ndarray
+    h1_phase_rad: np.ndarray
+    h2_fixed_phase_rad: np.ndarray
+    pre_l1_09_phase_rad: np.ndarray
     phase_unwrapped_rad: np.ndarray
     omega_rad: np.ndarray
     group_delay_s: np.ndarray
@@ -42,7 +45,8 @@ class GroupDelayAnalysis:
 
 def find_latest_h1_csv(data_root: Path = DATA_ROOT) -> Path:
     candidates = sorted(
-        data_root.glob(f"h1_full_combined_random_*/{H1_DATA_DIR_NAME}/together.csv"),
+        list(data_root.glob(f"full_combined_*/{H1_DATA_DIR_NAME}/together.csv"))
+        + list(data_root.glob(f"h1_full_combined_random_*/{H1_DATA_DIR_NAME}/together.csv")),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -51,15 +55,23 @@ def find_latest_h1_csv(data_root: Path = DATA_ROOT) -> Path:
     return candidates[0]
 
 
-def load_h1_phase_csv(input_csv: Path) -> tuple[np.ndarray, np.ndarray]:
+def run_dir_from_h1_csv(h1_csv: Path) -> Path:
+    return h1_csv.parent.parent if h1_csv.parent.name == H1_DATA_DIR_NAME else h1_csv.parent
+
+
+def default_h2_fixed_response_csv(h1_csv: Path) -> Path:
+    return run_dir_from_h1_csv(h1_csv) / "l1_08_h2_fixed_point" / "h2_fixed_point_response.csv"
+
+
+def load_h1_phase_csv(h1_csv: Path) -> tuple[np.ndarray, np.ndarray]:
     freq_hz: list[float] = []
     phase_rad: list[float] = []
 
-    with input_csv.open("r", newline="", encoding="utf-8") as csv_file:
+    with h1_csv.open("r", newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
         required_columns = {"freq_hz", "phase_rad"}
         if not reader.fieldnames or not required_columns.issubset(reader.fieldnames):
-            raise ValueError(f"{input_csv} must contain columns: freq_hz,phase_rad")
+            raise ValueError(f"{h1_csv} must contain columns: freq_hz,phase_rad")
 
         for row in reader:
             freq_hz.append(float(row["freq_hz"]))
@@ -82,9 +94,49 @@ def load_h1_phase_csv(input_csv: Path) -> tuple[np.ndarray, np.ndarray]:
     return freq, phase
 
 
-def analyze_group_delay(input_csv: Path) -> GroupDelayAnalysis:
-    freq_hz, phase_rad = load_h1_phase_csv(input_csv)
-    phase_unwrapped = np.unwrap(phase_rad)
+def load_h2_fixed_phase_csv(h2_fixed_response_csv: Path) -> tuple[np.ndarray, np.ndarray]:
+    freq_hz: list[float] = []
+    phase_rad: list[float] = []
+
+    with h2_fixed_response_csv.open("r", newline="", encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
+        required_columns = {"freq_hz", "h2_fixed_phase_rad"}
+        if not reader.fieldnames or not required_columns.issubset(reader.fieldnames):
+            raise ValueError(f"{h2_fixed_response_csv} must contain columns: freq_hz,h2_fixed_phase_rad")
+
+        for row in reader:
+            freq_hz.append(float(row["freq_hz"]))
+            phase_rad.append(float(row["h2_fixed_phase_rad"]))
+
+    freq = np.asarray(freq_hz, dtype=float)
+    phase = np.asarray(phase_rad, dtype=float)
+
+    if freq.ndim != 1 or phase.ndim != 1:
+        raise ValueError("H2 fixed freq_hz and phase must be 1-D arrays.")
+    if freq.size != phase.size:
+        raise ValueError("H2 fixed freq_hz and phase must have the same length.")
+    if freq.size < 3:
+        raise ValueError("H2 fixed response needs at least three frequency points.")
+    if not np.all(np.isfinite(freq)) or not np.all(np.isfinite(phase)):
+        raise ValueError("H2 fixed response contains non-finite values.")
+    if not np.all(np.diff(freq) > 0):
+        raise ValueError("H2 fixed freq_hz must be strictly increasing.")
+
+    return freq, phase
+
+
+def analyze_group_delay(h1_csv: Path, h2_fixed_response_csv: Path | None = None) -> GroupDelayAnalysis:
+    h2_csv = h2_fixed_response_csv or default_h2_fixed_response_csv(h1_csv)
+    if not h2_csv.is_file():
+        raise FileNotFoundError(f"Missing L1-08 fixed FIR response CSV: {h2_csv}")
+
+    freq_hz, h1_phase_rad = load_h1_phase_csv(h1_csv)
+    h2_freq_hz, h2_fixed_phase_rad = load_h2_fixed_phase_csv(h2_csv)
+    if freq_hz.shape != h2_freq_hz.shape or not np.allclose(freq_hz, h2_freq_hz, rtol=0.0, atol=1e-6):
+        raise ValueError("H1 and H2 fixed response frequency grids must match before L1-09 analysis.")
+
+    pre_l1_09_phase_rad = np.unwrap(h1_phase_rad) + np.unwrap(h2_fixed_phase_rad)
+    phase_unwrapped = np.unwrap(pre_l1_09_phase_rad)
     omega_rad = 2.0 * np.pi * freq_hz
     group_delay_s = -np.gradient(phase_unwrapped, omega_rad)
     group_delay_ns = group_delay_s * 1e9
@@ -93,12 +145,15 @@ def analyze_group_delay(input_csv: Path) -> GroupDelayAnalysis:
     ripple_pp_ns = float(np.max(group_delay_ns) - np.min(group_delay_ns))
     rms_error_ns = float(np.sqrt(np.mean((group_delay_ns - mean_ns) ** 2)))
 
-    run_name = input_csv.parent.parent.name if input_csv.parent.name == H1_DATA_DIR_NAME else input_csv.parent.name
+    run_name = run_dir_from_h1_csv(h1_csv).name
     return GroupDelayAnalysis(
-        input_csv=input_csv,
+        h1_csv=h1_csv,
+        h2_fixed_response_csv=h2_csv,
         run_name=run_name,
         freq_hz=freq_hz,
-        phase_rad=phase_rad,
+        h1_phase_rad=h1_phase_rad,
+        h2_fixed_phase_rad=h2_fixed_phase_rad,
+        pre_l1_09_phase_rad=pre_l1_09_phase_rad,
         phase_unwrapped_rad=phase_unwrapped,
         omega_rad=omega_rad,
         group_delay_s=group_delay_s,
@@ -109,7 +164,11 @@ def analyze_group_delay(input_csv: Path) -> GroupDelayAnalysis:
     )
 
 
-def default_output_dir(analysis: GroupDelayAnalysis) -> Path:
+def default_data_dir(analysis: GroupDelayAnalysis) -> Path:
+    return DATA_ROOT / analysis.run_name / "l1_09_fix_group_delay"
+
+
+def default_graph_dir(analysis: GroupDelayAnalysis) -> Path:
     return RESULTS_ROOT / analysis.run_name / "l1_09_fix_group_delay"
 
 
@@ -120,7 +179,9 @@ def save_group_delay_csv(analysis: GroupDelayAnalysis, output_csv: Path) -> None
         writer.writerow(
             [
                 "freq_hz",
-                "phase_rad",
+                "h1_phase_rad",
+                "h2_fixed_phase_rad",
+                "pre_l1_09_phase_rad",
                 "phase_unwrapped_rad",
                 "omega_rad",
                 "group_delay_s",
@@ -129,17 +190,21 @@ def save_group_delay_csv(analysis: GroupDelayAnalysis, output_csv: Path) -> None
         )
         for values in zip(
             analysis.freq_hz,
-            analysis.phase_rad,
+            analysis.h1_phase_rad,
+            analysis.h2_fixed_phase_rad,
+            analysis.pre_l1_09_phase_rad,
             analysis.phase_unwrapped_rad,
             analysis.omega_rad,
             analysis.group_delay_s,
             analysis.group_delay_ns,
         ):
-            freq_hz, phase_rad, phase_unwrapped, omega_rad, gd_s, gd_ns = values
+            freq_hz, h1_phase, h2_phase, pre_phase, phase_unwrapped, omega_rad, gd_s, gd_ns = values
             writer.writerow(
                 [
                     f"{freq_hz:.6f}",
-                    f"{phase_rad:.12f}",
+                    f"{h1_phase:.12f}",
+                    f"{h2_phase:.12f}",
+                    f"{pre_phase:.12f}",
                     f"{phase_unwrapped:.12f}",
                     f"{omega_rad:.12f}",
                     f"{gd_s:.15e}",
@@ -153,7 +218,9 @@ def save_metrics_csv(analysis: GroupDelayAnalysis, output_csv: Path) -> None:
     with output_csv.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(["metric", "value"])
-        writer.writerow(["input_csv", str(analysis.input_csv)])
+        writer.writerow(["signal_model", "pre_l1_09_response = H1 * H2_fixed"])
+        writer.writerow(["h1_csv", str(analysis.h1_csv)])
+        writer.writerow(["h2_fixed_response_csv", str(analysis.h2_fixed_response_csv)])
         writer.writerow(["run_name", analysis.run_name])
         writer.writerow(["point_count", analysis.freq_hz.size])
         writer.writerow(["f_min_hz", f"{analysis.freq_hz[0]:.6f}"])
@@ -167,7 +234,7 @@ def plot_phase(analysis: GroupDelayAnalysis, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(9, 5))
     ax.plot(analysis.freq_hz, analysis.phase_unwrapped_rad, linewidth=1.6)
-    ax.set_title("L1-09 input phase")
+    ax.set_title("L1-09 input phase after L1-08 fixed FIR")
     ax.set_xlabel("Frequency (Hz)")
     ax.set_ylabel("Unwrapped phase (rad)")
     ax.grid(True, alpha=0.3)
@@ -181,7 +248,7 @@ def plot_group_delay(analysis: GroupDelayAnalysis, output_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(9, 5))
     ax.plot(analysis.freq_hz, analysis.group_delay_ns, linewidth=1.6)
     ax.axhline(analysis.group_delay_mean_ns, color="black", linestyle="--", linewidth=1.0, label="mean")
-    ax.set_title("L1-09 input group delay")
+    ax.set_title("L1-09 input group delay after L1-08 fixed FIR")
     ax.set_xlabel("Frequency (Hz)")
     ax.set_ylabel("Group delay (ns)")
     ax.grid(True, alpha=0.3)
@@ -192,40 +259,68 @@ def plot_group_delay(analysis: GroupDelayAnalysis, output_path: Path) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Analyze L1-09 input phase and group delay from H1 CSV data.")
+    parser = argparse.ArgumentParser(description="Analyze pre-L1-09 phase/group delay from H1 cascaded with L1-08 fixed FIR.")
+    parser.add_argument(
+        "--h1-csv",
+        type=Path,
+        default=None,
+        help="Input H1 CSV with freq_hz and phase_rad. Defaults to latest data/full_combined_*/h1_full_combined_random/together.csv.",
+    )
     parser.add_argument(
         "--input-csv",
         type=Path,
         default=None,
-        help="Input H1 CSV with freq_hz and phase_rad. Defaults to latest data/*/h1_full_combined_random/together.csv.",
+        help="Deprecated alias for --h1-csv.",
+    )
+    parser.add_argument(
+        "--h2-fixed-response-csv",
+        type=Path,
+        default=None,
+        help="L1-08 fixed FIR response CSV. Defaults to data/<run>/l1_08_h2_fixed_point/h2_fixed_point_response.csv.",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=None,
+        help="CSV output directory. Defaults to data/<run_name>/l1_09_fix_group_delay.",
+    )
+    parser.add_argument(
+        "--graph-dir",
+        type=Path,
+        default=None,
+        help="Plot output directory. Defaults to graph/<run_name>/l1_09_fix_group_delay.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
-        help="Output directory. Defaults to results/<run_name>/l1_09_fix_group_delay.",
+        help="Deprecated alias for --data-dir and --graph-dir.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    input_csv = args.input_csv or find_latest_h1_csv()
-    analysis = analyze_group_delay(input_csv)
-    output_dir = args.output_dir or default_output_dir(analysis)
+    h1_csv = args.h1_csv or args.input_csv or find_latest_h1_csv()
+    analysis = analyze_group_delay(h1_csv, args.h2_fixed_response_csv)
+    data_dir = args.data_dir or args.output_dir or default_data_dir(analysis)
+    graph_dir = args.graph_dir or args.output_dir or default_graph_dir(analysis)
 
-    group_delay_csv = output_dir / "group_delay_analysis.csv"
-    metrics_csv = output_dir / "group_delay_metrics.csv"
-    phase_plot = output_dir / "phase_before_l1_09.png"
-    group_delay_plot = output_dir / "group_delay_before_l1_09.png"
+    group_delay_csv = data_dir / "group_delay_analysis.csv"
+    metrics_csv = data_dir / "group_delay_metrics.csv"
+    phase_plot = graph_dir / "phase_before_l1_09.png"
+    group_delay_plot = graph_dir / "group_delay_before_l1_09.png"
 
     save_group_delay_csv(analysis, group_delay_csv)
     save_metrics_csv(analysis, metrics_csv)
     plot_phase(analysis, phase_plot)
     plot_group_delay(analysis, group_delay_plot)
 
-    print(f"input_csv: {input_csv}")
-    print(f"output_dir: {output_dir}")
+    print(f"h1_csv: {h1_csv}")
+    print(f"h2_fixed_response_csv: {analysis.h2_fixed_response_csv}")
+    print("signal_model: pre_l1_09_response = H1 * H2_fixed")
+    print(f"data_dir: {data_dir}")
+    print(f"graph_dir: {graph_dir}")
     print(f"group_delay_mean_ns: {analysis.group_delay_mean_ns:.9f}")
     print(f"group_delay_ripple_pp_ns: {analysis.group_delay_ripple_pp_ns:.9f}")
     print(f"group_delay_rms_error_ns: {analysis.group_delay_rms_error_ns:.9f}")

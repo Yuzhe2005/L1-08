@@ -73,8 +73,8 @@ class H1CombinedRandomGenerator:
 
 def plot_run(run: CombinedH1Run) -> list[Path]:
     project_root = Path(__file__).resolve().parents[1]
-    results_dir = project_root / "results" / run.run_name
-    plotter = HPlotter(results_dir=results_dir)
+    graph_dir = project_root / "graph" / run.run_name
+    plotter = HPlotter(graph_dir=graph_dir)
 
     csv_files = [run.output_dir / f"{feature.name}.csv" for feature in run.single_features]
     csv_files.append(run.output_dir / f"{run.combined.name}.csv")

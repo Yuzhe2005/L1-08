@@ -8,9 +8,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent
 L1_08_ROOT = REPO_ROOT / "L1-08_sim"
-L1_09_ROOT = REPO_ROOT / "L1-09_sim_fix"
+L1_09_ROOT = REPO_ROOT / "L1_09_sim"
 DATA_ROOT = REPO_ROOT / "data"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 
 for import_path in (L1_08_ROOT, L1_09_ROOT, REPO_ROOT):
     import_text = str(import_path)
@@ -84,7 +84,7 @@ def pipeline_env(profile: str | None) -> dict[str, str]:
 
 
 def current_ready_runs() -> set[Path]:
-    return {path.resolve() for path in DATA_ROOT.glob("h1_full_combined_random_*") if path.is_dir()}
+    return {path.resolve() for path in DATA_ROOT.glob("full_combined_*") if path.is_dir()}
 
 
 def find_new_ready_run(before: set[Path]) -> Path:
@@ -179,7 +179,7 @@ def main() -> None:
         "full_l1_08_l1_09_pipeline",
         {
             "run_dir": run_dir,
-            "results_dir": RESULTS_ROOT / run_dir.name,
+            "graph_dir": RESULTS_ROOT / run_dir.name,
             "profile": args.profile or "active",
             "validation_coeff_mode": args.validation_coeff_mode,
             "skip_l1_08_qam_evm": args.skip_l1_08_qam_evm,
@@ -198,12 +198,12 @@ def main() -> None:
                 },
             ],
         },
-        results_dir=RESULTS_ROOT / run_dir.name,
+        graph_dir=RESULTS_ROOT / run_dir.name,
     )
 
     print("\nFull pipeline completed.", flush=True)
     print(f"run_dir: {run_dir}", flush=True)
-    print(f"results_dir: {RESULTS_ROOT / run_dir.name}", flush=True)
+    print(f"graph_dir: {RESULTS_ROOT / run_dir.name}", flush=True)
     print(f"summary_json: {summary_path}", flush=True)
 
 

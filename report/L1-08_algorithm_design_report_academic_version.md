@@ -217,12 +217,12 @@ representable_range ≈ [-2^(m-1), 2^(m-1) - 2^(-n)]
 | Config file | Role | Main contents |
 |---|---|---|
 | `L1_08_experiment_config.json` | Base experiment config | active config、bandwidth profiles、H1 random model 参数范围、behavior/QAM 默认参数 |
-| `sweep_test/config.json` | Sweep controller config | 本轮 sweep 使用的 profiles、seed_cases、tap_num、regularization、fixed-point formats、输出路径和 cleanup 设置 |
+| `sweep_test_config.json` | Sweep controller config | 本轮 sweep 使用的 profiles、seed_cases、tap_num、regularization、fixed-point formats、输出路径和 cleanup 设置 |
 
 二者的关系如下：
 
 ```text
-sweep_test/config.json
+sweep_test_config.json
         ↓
 run_sweep.py reads sweep dimensions
         ↓
@@ -235,7 +235,7 @@ pipeline runs one complete H1/H2/FIR/fixed-point/behavior/QAM simulation
 results are copied into sweep_result/
 ```
 
-因此，`L1_08_experiment_config.json` 定义“一个实验可以怎样被生成”，而 `sweep_test/config.json` 定义“本轮批量实验要扫哪些组合”。本轮 135 组 sweep 的 bandwidth profile 来自 `L1_08_experiment_config.json`，seed case、tap number、regularization 和 fixed-point 格式来自 `sweep_test/config.json`。
+因此，`L1_08_experiment_config.json` 定义“一个实验可以怎样被生成”，而 `sweep_test_config.json` 定义“本轮批量实验要扫哪些组合”。本轮 135 组 sweep 的 bandwidth profile 来自 `L1_08_experiment_config.json`，seed case、tap number、regularization 和 fixed-point 格式来自 `sweep_test_config.json`。
 
 ### 5.2 Sweep dimensions
 
@@ -421,13 +421,13 @@ QAM magnitude-only EVM 用于辅助观察幅度补偿对宽带调制信号的影
 运行 sweep：
 
 ```powershell
-& 'C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\668082bd16c2c5ea\L1-08_sim\.venv\Scripts\python.exe' sweep_test/run_sweep.py --config sweep_test/config.json
+& 'C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\668082bd16c2c5ea\L1-08_sim\.venv\Scripts\python.exe' sweep_test/run_sweep.py --config sweep_test_config.json
 ```
 
 分析 sweep：
 
 ```powershell
-& 'C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\668082bd16c2c5ea\L1-08_sim\.venv\Scripts\python.exe' sweep_test/analyze_sweep_results.py --config sweep_test/config.json
+& 'C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\668082bd16c2c5ea\L1-08_sim\.venv\Scripts\python.exe' sweep_test/analyze_sweep_results.py --config sweep_test_config.json
 ```
 
 主要输出：

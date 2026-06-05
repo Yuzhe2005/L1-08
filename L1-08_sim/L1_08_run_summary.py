@@ -34,7 +34,7 @@ def update_run_summary(
     run_dir: Path,
     stage_name: str,
     stage_summary: dict[str, Any],
-    results_dir: Path | None = None,
+    graph_dir: Path | None = None,
 ) -> Path:
     run_dir.mkdir(parents=True, exist_ok=True)
     summary_path = run_dir / "run_summary.json"
@@ -53,8 +53,8 @@ def update_run_summary(
 
     summary["updated_at_utc"] = now
     summary["data_dir"] = str(run_dir)
-    if results_dir is not None:
-        summary["results_dir"] = str(results_dir)
+    if graph_dir is not None:
+        summary["graph_dir"] = str(graph_dir)
     summary["experiment_config"] = _jsonable(load_l1_08_config())
 
     stages = summary.setdefault("stages", {})

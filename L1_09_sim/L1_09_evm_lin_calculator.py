@@ -12,7 +12,7 @@ import numpy as np
 L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 L1_08_ROOT = REPO_ROOT / "L1-08_sim"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_fix_matplotlib" / f"pid_{os.getpid()}"
 
 for import_path in (L1_08_ROOT, L1_09_ROOT, REPO_ROOT):
@@ -391,7 +391,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Input allpass coefficient CSV. Defaults depend on --coeff-mode.",
     )
-    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to results/<run>/l1_09_fix_evm_lin_<mode>.")
+    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to graph/<run>/l1_09_fix_evm_lin_<mode>.")
     parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
     parser.add_argument("--freq-min-hz", type=float, default=default_freq_min_hz, help=f"Minimum frequency for EVM_LIN integration. Default: {default_freq_min_hz:.6g} Hz.")
     parser.add_argument("--freq-max-hz", type=float, default=default_freq_max_hz, help=f"Maximum frequency for EVM_LIN integration. Default: {default_freq_max_hz:.6g} Hz.")
@@ -447,7 +447,7 @@ def main() -> None:
                 "plot": run.output_dir / "evm_lin.png",
             },
         },
-        results_dir=run.output_dir,
+        graph_dir=run.output_dir,
     )
 
     print(f"run_dir: {run.run_dir}")

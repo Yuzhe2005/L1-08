@@ -1,7 +1,6 @@
 import argparse
 import csv
 import os
-import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,14 +11,8 @@ from scipy.optimize import least_squares
 
 L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
-L1_08_ROOT = REPO_ROOT / "L1-08_sim"
-RESULTS_ROOT = REPO_ROOT / "results"
-MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_fix_matplotlib" / f"pid_{os.getpid()}"
-
-for import_path in (L1_08_ROOT, REPO_ROOT):
-    import_text = str(import_path)
-    if import_text not in sys.path:
-        sys.path.insert(0, import_text)
+RESULTS_ROOT = REPO_ROOT / "graph"
+MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_matplotlib" / f"pid_{os.getpid()}"
 
 MPLCONFIG_ROOT.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIG_ROOT))
@@ -29,9 +22,6 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
-
-from L1_08_config import get_common_config_value
-from L1_09_config import get_l1_09_config_value
 
 
 @dataclass(frozen=True)
@@ -48,7 +38,6 @@ class GroupDelayInput:
 class AllPassDesign:
     input_data: GroupDelayInput
     output_dir: Path
-    fs_hz: float
     section_count: int
     target_delay_ns: float
     margin_ns: float
@@ -69,14 +58,14 @@ class AllPassDesign:
 
 def find_latest_group_delay_csv(results_root: Path = RESULTS_ROOT) -> Path:
     candidates = sorted(
-        results_root.glob("h1_full_combined_random_*/l1_09_fix_group_delay/group_delay_analysis.csv"),
+        results_root.glob("h1_full_combined_random_*/l1_09_group_delay/group_delay_analysis.csv"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
     if not candidates:
         raise FileNotFoundError(
             f"No group_delay_analysis.csv found under {results_root}. "
-            "Run L1-09_sim_fix/L1_09_group_delay_analyzer.py first."
+            "Run L1_09_group_delay_analyzer.py first."
         )
     return candidates[0]
 
@@ -115,7 +104,7 @@ def load_group_delay_csv(input_csv: Path) -> GroupDelayInput:
     if not np.all(np.diff(freq) > 0):
         raise ValueError("freq_hz must be strictly increasing.")
 
-    run_name = input_csv.parents[1].name if input_csv.parent.name == "l1_09_fix_group_delay" else input_csv.stem
+    run_name = input_csv.parents[1].name if input_csv.parent.name == "l1_09_group_delay" else input_csv.stem
     return GroupDelayInput(
         input_csv=input_csv,
         run_name=run_name,
@@ -127,21 +116,14 @@ def load_group_delay_csv(input_csv: Path) -> GroupDelayInput:
 
 
 def default_output_dir(input_data: GroupDelayInput) -> Path:
-    return RESULTS_ROOT / input_data.run_name / "l1_09_fix_allpass_iir_fs"
+    return RESULTS_ROOT / input_data.run_name / "l1_09_allpass_float"
 
 
-def fs_based_digital_frequency(freq_hz: np.ndarray, fs_hz: float) -> np.ndarray:
-    if fs_hz <= 0.0:
-        raise ValueError("fs_hz must be positive.")
-    if freq_hz[0] < 0.0:
-        raise ValueError("This real-coefficient all-pass model expects non-negative frequencies.")
-    nyquist_hz = 0.5 * fs_hz
-    if freq_hz[-1] >= nyquist_hz:
-        raise ValueError(
-            "This real-coefficient all-pass model expects the design band below Nyquist. "
-            f"f_max={freq_hz[-1]:.6g} Hz, Nyquist={nyquist_hz:.6g} Hz."
-        )
-    return 2.0 * np.pi * freq_hz / fs_hz
+def normalized_digital_frequency(freq_hz: np.ndarray) -> np.ndarray:
+    span_hz = float(freq_hz[-1] - freq_hz[0])
+    if span_hz <= 0.0:
+        raise ValueError("Frequency span must be positive.")
+    return np.pi * (freq_hz - freq_hz[0]) / span_hz
 
 
 def moving_average(values: np.ndarray, window: int) -> np.ndarray:
@@ -198,29 +180,23 @@ def unpack_params(params: np.ndarray, section_count: int) -> tuple[np.ndarray, n
     return r_values, theta_values_rad
 
 
-def initial_params(section_count: int, digital_w_rad: np.ndarray) -> np.ndarray:
+def initial_params(section_count: int) -> np.ndarray:
     r_values = np.full(section_count, 0.55, dtype=float)
-    theta_values = np.linspace(float(digital_w_rad[0]), float(digital_w_rad[-1]), section_count)
+    theta_values = np.linspace(0.12 * np.pi, 0.88 * np.pi, section_count)
     return pack_params(r_values, theta_values)
 
 
-def parameter_bounds(section_count: int, digital_w_rad: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def parameter_bounds(section_count: int) -> tuple[np.ndarray, np.ndarray]:
     r_low = np.full(section_count, 0.05, dtype=float)
     r_high = np.full(section_count, 0.98, dtype=float)
-    band_low = float(digital_w_rad[0])
-    band_high = float(digital_w_rad[-1])
-    band_span = band_high - band_low
-    theta_min = max(0.02 * np.pi, band_low - 0.2 * band_span)
-    theta_max = min(0.98 * np.pi, band_high + 0.2 * band_span)
-    theta_low = np.full(section_count, theta_min, dtype=float)
-    theta_high = np.full(section_count, theta_max, dtype=float)
+    theta_low = np.full(section_count, 0.02 * np.pi, dtype=float)
+    theta_high = np.full(section_count, 0.98 * np.pi, dtype=float)
     return pack_params(r_low, theta_low), pack_params(r_high, theta_high)
 
 
 def design_allpass(
     input_data: GroupDelayInput,
     output_dir: Path,
-    fs_hz: float,
     section_count: int,
     margin_ns: float | None,
     smooth_window: int,
@@ -235,9 +211,9 @@ def design_allpass(
         resolved_margin_ns = max(0.05, 0.05 * original_ripple_ns)
 
     target_delay_ns = float(np.max(fit_delay_ns) + resolved_margin_ns)
-    digital_w = fs_based_digital_frequency(input_data.freq_hz, fs_hz)
+    digital_w = normalized_digital_frequency(input_data.freq_hz)
 
-    initial_r_values, initial_theta_values = unpack_params(initial_params(section_count, digital_w), section_count)
+    initial_r_values, initial_theta_values = unpack_params(initial_params(section_count), section_count)
     _, initial_ap_delay_ns = response_phase_and_delay_ns(
         digital_w,
         input_data.omega_rad,
@@ -261,10 +237,10 @@ def design_allpass(
         # Scale keeps the optimizer numerically comfortable while preserving ns units.
         return (compensated_delay_ns - candidate_target_delay_ns) / max(original_ripple_ns, 1.0)
 
-    lower, upper = parameter_bounds(section_count, digital_w)
+    lower, upper = parameter_bounds(section_count)
     lower = np.concatenate([lower, np.asarray([target_lower_ns])])
     upper = np.concatenate([upper, np.asarray([target_upper_ns])])
-    x0 = np.concatenate([initial_params(section_count, digital_w), np.asarray([initial_target_delay_ns])])
+    x0 = np.concatenate([initial_params(section_count), np.asarray([initial_target_delay_ns])])
     result = least_squares(
         residual,
         x0,
@@ -289,7 +265,9 @@ def design_allpass(
     )
     compensated_group_delay_ns = input_data.group_delay_ns + allpass_delay_ns
     compensated_phase_rad = input_data.phase_rad + allpass_phase
-    center_freq_hz = theta_values * fs_hz / (2.0 * np.pi)
+    center_freq_hz = input_data.freq_hz[0] + (theta_values / np.pi) * (
+        input_data.freq_hz[-1] - input_data.freq_hz[0]
+    )
 
     compensated_error = compensated_group_delay_ns - target_delay_ns
     compensated_ripple_pp_ns = float(np.max(compensated_group_delay_ns) - np.min(compensated_group_delay_ns))
@@ -298,7 +276,6 @@ def design_allpass(
     return AllPassDesign(
         input_data=input_data,
         output_dir=output_dir,
-        fs_hz=fs_hz,
         section_count=section_count,
         target_delay_ns=target_delay_ns,
         margin_ns=float(resolved_margin_ns),
@@ -325,7 +302,6 @@ def save_coefficients_csv(design: AllPassDesign, output_csv: Path) -> None:
         writer.writerow(
             [
                 "section",
-                "fs_hz",
                 "r",
                 "theta_rad",
                 "center_freq_hz",
@@ -351,7 +327,6 @@ def save_coefficients_csv(design: AllPassDesign, output_csv: Path) -> None:
             writer.writerow(
                 [
                     idx,
-                    f"{design.fs_hz:.6f}",
                     f"{r:.12f}",
                     f"{theta:.12f}",
                     f"{center_freq:.6f}",
@@ -373,7 +348,6 @@ def save_response_csv(design: AllPassDesign, output_csv: Path) -> None:
         writer.writerow(
             [
                 "freq_hz",
-                "digital_w_rad_per_sample",
                 "original_phase_rad",
                 "allpass_phase_rad",
                 "compensated_phase_rad",
@@ -385,7 +359,6 @@ def save_response_csv(design: AllPassDesign, output_csv: Path) -> None:
         )
         for values in zip(
             data.freq_hz,
-            fs_based_digital_frequency(data.freq_hz, design.fs_hz),
             data.phase_rad,
             design.allpass_phase_rad,
             design.compensated_phase_rad,
@@ -395,7 +368,6 @@ def save_response_csv(design: AllPassDesign, output_csv: Path) -> None:
         ):
             (
                 freq_hz,
-                digital_w,
                 original_phase,
                 allpass_phase,
                 compensated_phase,
@@ -406,7 +378,6 @@ def save_response_csv(design: AllPassDesign, output_csv: Path) -> None:
             writer.writerow(
                 [
                     f"{freq_hz:.6f}",
-                    f"{digital_w:.12f}",
                     f"{original_phase:.12f}",
                     f"{allpass_phase:.12f}",
                     f"{compensated_phase:.12f}",
@@ -429,8 +400,6 @@ def save_metrics_csv(design: AllPassDesign, output_csv: Path) -> None:
         writer = csv.writer(csv_file)
         writer.writerow(["metric", "value"])
         writer.writerow(["input_csv", str(design.input_data.input_csv)])
-        writer.writerow(["design_model", "fs_based_time_domain_iir"])
-        writer.writerow(["fs_hz", f"{design.fs_hz:.6f}"])
         writer.writerow(["section_count", design.section_count])
         writer.writerow(["target_delay_ns", f"{design.target_delay_ns:.9f}"])
         writer.writerow(["target_margin_ns", f"{design.margin_ns:.9f}"])
@@ -478,41 +447,36 @@ def plot_phase_before_after(design: AllPassDesign, output_path: Path) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    default_fs_hz = float(get_common_config_value("fs_hz", 12e9))
-    default_sections = int(get_l1_09_config_value("allpass", "sections", 4))
-    default_margin_ns = get_l1_09_config_value("allpass", "margin_ns", None)
-    default_smooth_window = int(get_l1_09_config_value("allpass", "smooth_window", 31))
-    parser = argparse.ArgumentParser(description="Design an fs-based floating multi-section second-order all-pass IIR equalizer.")
+    parser = argparse.ArgumentParser(description="Design a floating multi-section second-order all-pass equalizer.")
     parser.add_argument(
         "--input-csv",
         type=Path,
         default=None,
-        help="Input group_delay_analysis.csv. Defaults to latest results/*/l1_09_fix_group_delay/group_delay_analysis.csv.",
+        help="Input group_delay_analysis.csv. Defaults to latest results/*/l1_09_group_delay/group_delay_analysis.csv.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
-        help="Output directory. Defaults to results/<run_name>/l1_09_fix_allpass_iir_fs.",
+        help="Output directory. Defaults to results/<run_name>/l1_09_allpass_float.",
     )
-    parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
     parser.add_argument(
         "--sections",
         type=int,
-        default=default_sections,
-        help=f"Number of second-order all-pass sections. Default from L1_09_experiment_config.json: {default_sections}.",
+        default=4,
+        help="Number of second-order all-pass sections.",
     )
     parser.add_argument(
         "--margin-ns",
         type=float,
-        default=default_margin_ns,
+        default=None,
         help="Delay margin above max group delay. Defaults to max(0.05 ns, 5%% of smoothed ripple).",
     )
     parser.add_argument(
         "--smooth-window",
         type=int,
-        default=default_smooth_window,
-        help=f"Odd moving-average window used only for fitting the target delay shape. Default from L1_09_experiment_config.json: {default_smooth_window}.",
+        default=31,
+        help="Odd moving-average window used only for fitting the target delay shape.",
     )
     return parser.parse_args()
 
@@ -526,7 +490,6 @@ def main() -> None:
     design = design_allpass(
         input_data=input_data,
         output_dir=output_dir,
-        fs_hz=args.fs_hz,
         section_count=args.sections,
         margin_ns=args.margin_ns,
         smooth_window=args.smooth_window,
@@ -546,7 +509,6 @@ def main() -> None:
 
     print(f"input_csv: {input_csv}")
     print(f"output_dir: {output_dir}")
-    print(f"fs_hz: {design.fs_hz:.6f}")
     print(f"section_count: {design.section_count}")
     print(f"target_delay_ns: {design.target_delay_ns:.9f}")
     print(f"compensated_group_delay_ripple_pp_ns: {design.compensated_ripple_pp_ns:.9f}")

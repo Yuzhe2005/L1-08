@@ -11,7 +11,7 @@ import numpy as np
 from sweep_config import SweepSettings
 
 
-DEFAULT_CONFIG = Path(__file__).resolve().parent / "config.json"
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "sweep_test_config.json"
 DEFAULT_TARGET_RIPPLE_DB = 0.1
 PROJECT_ROOT = Path(__file__).resolve().parent
 os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib"))

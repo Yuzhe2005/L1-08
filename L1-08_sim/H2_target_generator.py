@@ -90,7 +90,8 @@ class H2TargetGenerator:
 def find_latest_magnitude_combined_csv() -> Path:
     data_dir = DATA_ROOT
     candidates = sorted(
-        data_dir.glob("h1_full_combined_random_*/h1_full_combined_random/magnitude_combined.csv"),
+        list(data_dir.glob("full_combined_*/h1_full_combined_random/magnitude_combined.csv"))
+        + list(data_dir.glob("h1_full_combined_random_*/h1_full_combined_random/magnitude_combined.csv")),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -205,7 +206,7 @@ def main() -> None:
             "h1_ripple_before_db": target.ripple_before_db(),
             "h1_plus_h2_target_ripple_db": target.target_residual_ripple_db(),
         },
-        results_dir=plot_path.parent,
+        graph_dir=plot_path.parent,
     )
 
     print(f"input_csv: {input_csv}")

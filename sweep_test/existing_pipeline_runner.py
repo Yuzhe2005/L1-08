@@ -41,7 +41,7 @@ class ExistingPipelineComboRunner:
 
         self._run_stage(
             "01_h1_generation",
-            [self._python(), self._script("H1_full_combined_random_generator.py")],
+            [self._python(), self._l1_08_script("H1_full_combined_random_generator.py")],
             logs_dir,
             combo,
         )
@@ -51,7 +51,7 @@ class ExistingPipelineComboRunner:
             "02_h2_target_generation",
             [
                 self._python(),
-                self._script("H2_target_generator.py"),
+                self._l1_08_script("H2_target_generator.py"),
                 "--input-csv",
                 str(source_run_dir / "h1_full_combined_random" / "magnitude_combined.csv"),
             ],
@@ -62,40 +62,40 @@ class ExistingPipelineComboRunner:
             "03_h2_fir_design",
             [
                 self._python(),
-                self._script("H2_fir_designer.py"),
+                self._l1_08_script("H2_fir_designer.py"),
                 "--input-csv",
                 str(source_run_dir / "l1_08_h2_target" / "h2_target.csv"),
                 "--tap-num",
-                str(combo.tap_num),
+                str(combo.l1_08_tap_num),
                 "--regularization",
-                f"{combo.regularization:.12g}",
+                f"{combo.l1_08_regularization:.12g}",
             ],
             logs_dir,
             combo,
         )
         self._run_stage(
-            "04_fixed_point_quantization",
+            "04_l1_08_fixed_point_quantization",
             [
                 self._python(),
-                self._script("H2_fixed_point_quantizer.py"),
+                self._l1_08_script("H2_fixed_point_quantizer.py"),
                 "--coefficients-csv",
                 str(source_run_dir / "l1_08_h2_fir_design" / "h2_fir_coefficients.csv"),
                 "--target-csv",
                 str(source_run_dir / "l1_08_h2_target" / "h2_target.csv"),
                 "--coeff-total-bits",
-                str(combo.fixed_point.total_bits),
+                str(combo.l1_08_fixed_point.total_bits),
                 "--coeff-frac-bits",
-                str(combo.fixed_point.frac_bits),
+                str(combo.l1_08_fixed_point.frac_bits),
             ],
             logs_dir,
             combo,
         )
         if self.settings.stages.run_behavior_simulation:
             self._run_stage(
-                "05_behavior_simulation",
+                "05_l1_08_behavior_simulation",
                 [
                     self._python(),
-                    self._script("L1_08_behavior_sim.py"),
+                    self._l1_08_script("L1_08_behavior_sim.py"),
                     "--run-dir",
                     str(source_run_dir),
                 ],
@@ -104,10 +104,10 @@ class ExistingPipelineComboRunner:
             )
         if self.settings.stages.run_qam_evm_simulation:
             self._run_stage(
-                "06_qam_evm_simulation",
+                "06_l1_08_qam_evm_simulation",
                 [
                     self._python(),
-                    self._script("L1_08_qam_evm_sim.py"),
+                    self._l1_08_script("L1_08_qam_evm_sim.py"),
                     "--run-dir",
                     str(source_run_dir),
                 ],
@@ -115,7 +115,28 @@ class ExistingPipelineComboRunner:
                 combo,
             )
 
-        source_graph_dir = self.settings.repo_root / "results" / source_run_dir.name
+        if self.settings.stages.run_l1_09:
+            l1_09_command = [
+                self._python(),
+                self._l1_09_script("run_all_l1_09_pipeline.py"),
+                "--run-dir",
+                str(source_run_dir),
+                "--validation-coeff-mode",
+                self.settings.stages.l1_09_validation_coeff_mode,
+                "--sections",
+                str(combo.l1_09_allpass_sections),
+                "--coeff-total-bits",
+                str(combo.l1_09_fixed_point.total_bits),
+                "--coeff-frac-bits",
+                str(combo.l1_09_fixed_point.frac_bits),
+            ]
+            if not self.settings.stages.run_l1_09_evm_lin:
+                l1_09_command.append("--skip-evm-lin")
+            if not self.settings.stages.run_l1_09_qam_evm:
+                l1_09_command.append("--skip-qam-evm")
+            self._run_stage("07_l1_09_full_pipeline", l1_09_command, logs_dir, combo)
+
+        source_graph_dir = self.settings.repo_root / "graph" / source_run_dir.name
         shutil.copytree(source_run_dir, data_dir)
         shutil.copytree(source_graph_dir, graph_dir)
 
@@ -124,7 +145,7 @@ class ExistingPipelineComboRunner:
 
         if self.settings.output.cleanup_sim_outputs_after_copy:
             self._remove_sim_output_dir(source_run_dir, self.settings.repo_root / "data")
-            self._remove_sim_output_dir(source_graph_dir, self.settings.repo_root / "results")
+            self._remove_sim_output_dir(source_graph_dir, self.settings.repo_root / "graph")
 
         return ComboResult(
             combo=combo,
@@ -155,13 +176,19 @@ class ExistingPipelineComboRunner:
             check=False,
         )
 
+        combo_data = combo.to_dict()
         log_path = logs_dir / f"{stage_name}.log"
         log_path.write_text(
             "profile: " + combo.profile_label + "\n"
-            + "seed_case: " + str(combo.to_dict().get("seed_case", "active")) + "\n"
-            + "h1_seed: " + str(combo.to_dict().get("h1_seed", "")) + "\n"
-            + "behavior_seed: " + str(combo.to_dict().get("behavior_seed", "")) + "\n"
-            + "qam_seed: " + str(combo.to_dict().get("qam_seed", "")) + "\n"
+            + "seed_case: " + str(combo_data.get("seed_case", "active")) + "\n"
+            + "h1_seed: " + str(combo_data.get("h1_seed", "")) + "\n"
+            + "behavior_seed: " + str(combo_data.get("behavior_seed", "")) + "\n"
+            + "qam_seed: " + str(combo_data.get("qam_seed", "")) + "\n"
+            + "l1_08_tap_num: " + str(combo.l1_08_tap_num) + "\n"
+            + "l1_08_regularization: " + f"{combo.l1_08_regularization:.12g}" + "\n"
+            + "l1_08_fixed_format: " + combo.l1_08_fixed_point.display_label + "\n"
+            + "l1_09_allpass_sections: " + str(combo.l1_09_allpass_sections) + "\n"
+            + "l1_09_fixed_format: " + combo.l1_09_fixed_point.display_label + "\n"
             + "command: " + " ".join(command) + "\n\n"
             + "[stdout]\n"
             + completed.stdout
@@ -175,7 +202,8 @@ class ExistingPipelineComboRunner:
 
     def _latest_run_dir(self) -> Path:
         candidates = sorted(
-            (self.settings.repo_root / "data").glob("h1_full_combined_random_*"),
+            list((self.settings.repo_root / "data").glob("full_combined_*"))
+            + list((self.settings.repo_root / "data").glob("h1_full_combined_random_*")),
             key=lambda path: path.stat().st_mtime,
             reverse=True,
         )
@@ -198,9 +226,14 @@ class ExistingPipelineComboRunner:
         stages = summary.get("stages", {})
         h1 = stages.get("h1_generation", {})
         h2 = stages.get("h2_fir_design", {})
-        fixed = stages.get("fixed_point_coefficient_quantization", {})
+        l1_08_fixed = stages.get("fixed_point_coefficient_quantization", {})
         behavior = stages.get("behavior_simulation", {})
         qam = stages.get("qam_evm_simulation", {})
+        l1_09_fixed = stages.get("l1_09_fix_allpass_iir_fixed", {})
+        l1_09_qam_float = stages.get("l1_09_fix_qam_evm_iir_float", {})
+        l1_09_qam_fixed = stages.get("l1_09_fix_qam_evm_iir_fixed", {})
+        l1_09_evm_lin_float = stages.get("l1_09_fix_evm_lin_float", {})
+        l1_09_evm_lin_fixed = stages.get("l1_09_fix_evm_lin_fixed", {})
 
         return {
             "run_name": summary.get("run_name"),
@@ -213,14 +246,23 @@ class ExistingPipelineComboRunner:
             "float_dense_ripple_db": h2.get("ripple_after_db"),
             "float_dense_pass_0p1db": h2.get("meets_0p1db_target"),
             "max_abs_coeff": h2.get("max_abs_coeff"),
-            "fixed_saturation_count": fixed.get("saturation_count"),
-            "fixed_dense_ripple_db": fixed.get("ripple_after_fixed_db"),
-            "fixed_dense_pass_0p1db": fixed.get("meets_0p1db_target_fixed"),
+            "fixed_saturation_count": l1_08_fixed.get("saturation_count"),
+            "fixed_dense_ripple_db": l1_08_fixed.get("ripple_after_fixed_db"),
+            "fixed_dense_pass_0p1db": l1_08_fixed.get("meets_0p1db_target_fixed"),
             "behavior_float_ripple_db": behavior.get("ripple_after_fir_db"),
             "behavior_fixed_ripple_db": behavior.get("ripple_after_fir_fixed_db"),
             "behavior_fixed_pass_0p1db": behavior.get("meets_0p1db_target_fixed"),
             "qam_float_magnitude_only_evm_percent": qam.get("after_float_fir_magnitude_only_evm_percent"),
             "qam_fixed_magnitude_only_evm_percent": qam.get("after_fixed_fir_magnitude_only_evm_percent"),
+            "l1_09_fixed_saturation_count": l1_09_fixed.get("saturation_count"),
+            "l1_09_fixed_stable": l1_09_fixed.get("stable"),
+            "l1_09_max_pole_radius": l1_09_fixed.get("max_pole_radius"),
+            "l1_09_qam_float_evm_percent": l1_09_qam_float.get("after_l1_08_plus_l1_09_evm_percent"),
+            "l1_09_qam_fixed_evm_percent": l1_09_qam_fixed.get("after_l1_08_plus_l1_09_evm_percent"),
+            "l1_09_qam_float_magnitude_only_evm_percent": l1_09_qam_float.get("after_l1_08_plus_l1_09_magnitude_only_evm_percent"),
+            "l1_09_qam_fixed_magnitude_only_evm_percent": l1_09_qam_fixed.get("after_l1_08_plus_l1_09_magnitude_only_evm_percent"),
+            "l1_09_evm_lin_float_metrics": json.dumps(l1_09_evm_lin_float.get("metrics", {}), ensure_ascii=False),
+            "l1_09_evm_lin_fixed_metrics": json.dumps(l1_09_evm_lin_fixed.get("metrics", {}), ensure_ascii=False),
         }
 
     def _write_metadata(
@@ -244,8 +286,11 @@ class ExistingPipelineComboRunner:
             encoding="utf-8",
         )
 
-    def _script(self, script_name: str) -> str:
-        return str(self.settings.sim_dir / script_name)
+    def _l1_08_script(self, script_name: str) -> str:
+        return str(self.settings.l1_08_sim_dir / script_name)
+
+    def _l1_09_script(self, script_name: str) -> str:
+        return str(self.settings.l1_09_sim_dir / script_name)
 
     def _python(self) -> str:
         return sys.executable
@@ -260,6 +305,16 @@ def write_sweep_summary_csv(results: list[ComboResult], output_csv: Path) -> Non
         "h1_seed",
         "behavior_seed",
         "qam_seed",
+        "l1_08_tap_num",
+        "l1_08_regularization",
+        "l1_08_coeff_total_bits",
+        "l1_08_coeff_frac_bits",
+        "l1_08_fixed_format",
+        "l1_09_allpass_sections",
+        "l1_09_coeff_total_bits",
+        "l1_09_coeff_frac_bits",
+        "l1_09_fixed_format",
+        # Legacy L1-08 columns for existing analyzer compatibility.
         "tap_num",
         "regularization",
         "coeff_total_bits",
@@ -278,21 +333,31 @@ def write_sweep_summary_csv(results: list[ComboResult], output_csv: Path) -> Non
         "behavior_fixed_pass_0p1db",
         "qam_float_magnitude_only_evm_percent",
         "qam_fixed_magnitude_only_evm_percent",
+        "l1_09_fixed_saturation_count",
+        "l1_09_fixed_stable",
+        "l1_09_max_pole_radius",
+        "l1_09_qam_float_evm_percent",
+        "l1_09_qam_fixed_evm_percent",
+        "l1_09_qam_float_magnitude_only_evm_percent",
+        "l1_09_qam_fixed_magnitude_only_evm_percent",
+        "l1_09_evm_lin_float_metrics",
+        "l1_09_evm_lin_fixed_metrics",
     ]
 
     with output_csv.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for result in results:
+            combo_data = result.combo.to_dict()
             row = {
                 "combo_folder": result.combo.folder_name,
-                **result.combo.to_dict(),
+                **combo_data,
                 **result.metrics,
             }
-            row["fixed_format"] = row.pop("format")
+            row["fixed_format"] = combo_data["format"]
             row["profile"] = result.combo.profile_label
-            row["seed_case"] = result.combo.to_dict()["seed_case"]
-            row["h1_seed"] = result.combo.to_dict()["h1_seed"]
-            row["behavior_seed"] = result.combo.to_dict()["behavior_seed"]
-            row["qam_seed"] = result.combo.to_dict()["qam_seed"]
+            row["seed_case"] = combo_data["seed_case"]
+            row["h1_seed"] = combo_data["h1_seed"]
+            row["behavior_seed"] = combo_data["behavior_seed"]
+            row["qam_seed"] = combo_data["qam_seed"]
             writer.writerow(row)

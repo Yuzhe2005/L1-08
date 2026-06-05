@@ -12,7 +12,7 @@ import numpy as np
 L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 L1_08_ROOT = REPO_ROOT / "L1-08_sim"
-RESULTS_ROOT = REPO_ROOT / "results"
+RESULTS_ROOT = REPO_ROOT / "graph"
 MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_fix_matplotlib" / f"pid_{os.getpid()}"
 
 for import_path in (L1_08_ROOT, L1_09_ROOT, REPO_ROOT):
@@ -454,7 +454,7 @@ def parse_args() -> argparse.Namespace:
         "--coefficients-csv",
         type=Path,
         default=None,
-        help="Input float allpass_coefficients.csv. Defaults to results/<run>/l1_09_fix_allpass_iir_fs/allpass_coefficients.csv.",
+        help="Input float allpass_coefficients.csv. Defaults to graph/<run>/l1_09_fix_allpass_iir_fs/allpass_coefficients.csv.",
     )
     parser.add_argument(
         "--response-csv",
@@ -462,7 +462,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Input float allpass_response.csv. Defaults to the coefficient CSV directory.",
     )
-    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to results/<run>/l1_09_fix_allpass_iir_fixed.")
+    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to graph/<run>/l1_09_fix_allpass_iir_fixed.")
     parser.add_argument("--coeff-total-bits", type=int, default=default_total_bits, help=f"Signed fixed-point coefficient total bits. Default from L1_09_experiment_config.json: {default_total_bits}.")
     parser.add_argument("--coeff-frac-bits", type=int, default=default_frac_bits, help=f"Signed fixed-point coefficient fractional bits. Default from L1_09_experiment_config.json: {default_frac_bits}.")
     return parser.parse_args()
@@ -505,7 +505,7 @@ def main() -> None:
                 "plot": design.output_dir / "allpass_fixed_quantization.png",
             },
         },
-        results_dir=design.output_dir,
+        graph_dir=design.output_dir,
     )
 
     print(f"run_dir: {run_dir}")

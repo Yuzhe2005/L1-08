@@ -36,7 +36,7 @@ from L1_08_io_utils import h1_data_dir
 class FullCombinedH1Run:
     run_name: str
     data_dir: Path
-    results_dir: Path
+    graph_dir: Path
     profile: str | None
     magnitude_features: list[H1]
     phase_features: list[H1]
@@ -53,12 +53,12 @@ class H1FullCombinedRandomGenerator:
         self.grid_config = _make_frequency_grid_config(self.h1_random_model)
 
     def generate(self, run_name: str | None = None) -> FullCombinedH1Run:
-        run_name = run_name or f"h1_full_combined_random_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        run_name = run_name or f"full_combined_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         data_dir = DATA_ROOT / run_name
-        results_dir = RESULTS_ROOT / run_name
+        graph_dir = RESULTS_ROOT / run_name
         output_data_dir = h1_data_dir(data_dir)
         data_dir.mkdir(parents=True, exist_ok=True)
-        results_dir.mkdir(parents=True, exist_ok=True)
+        graph_dir.mkdir(parents=True, exist_ok=True)
         output_data_dir.mkdir(parents=True, exist_ok=True)
 
         magnitude_features = [
@@ -103,7 +103,7 @@ class H1FullCombinedRandomGenerator:
         return FullCombinedH1Run(
             run_name=run_name,
             data_dir=data_dir,
-            results_dir=results_dir,
+            graph_dir=graph_dir,
             profile=self.profile,
             magnitude_features=magnitude_features,
             phase_features=phase_features,
@@ -247,10 +247,10 @@ def _coerce_config_value(value: Any, default_value: Any) -> Any:
 
 
 def plot_run(run: FullCombinedH1Run) -> list[Path]:
-    plot_dir = run.results_dir / "h1_full_combined_random"
+    plot_dir = run.graph_dir / "h1_full_combined_random"
     h1_dir = h1_data_dir(run.data_dir)
-    magnitude_plotter = HMagnitudePlotter(results_dir=plot_dir)
-    phase_plotter = HPhasePlotter(results_dir=plot_dir)
+    magnitude_plotter = HMagnitudePlotter(graph_dir=plot_dir)
+    phase_plotter = HPhasePlotter(graph_dir=plot_dir)
 
     plot_paths: list[Path] = []
 
@@ -279,7 +279,7 @@ if __name__ == "__main__":
             "seed_case": seed_case_name or "active",
             "seed": h1_seed,
             "data_dir": run.data_dir,
-            "results_dir": run.results_dir,
+            "graph_dir": run.graph_dir,
             "frequency": {
                 "points": run.magnitude_combined.freq_hz.size,
                 "f_min_hz": run.magnitude_combined.freq_hz[0],
@@ -312,7 +312,7 @@ if __name__ == "__main__":
                 "plots": plot_paths,
             },
         },
-        results_dir=run.results_dir,
+        graph_dir=run.graph_dir,
     )
 
     print(f"run_name: {run.run_name}")
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     print(f"seed_case: {seed_case_name or 'active'}")
     print(f"h1_seed: {h1_seed}")
     print(f"data_folder: {run.data_dir}")
-    print(f"results_folder: {run.results_dir}")
+    print(f"graph_folder: {run.graph_dir}")
     print(f"summary_json: {summary_path}")
     print(f"csv_count: {len(list(h1_dir.glob('*.csv')))}")
     print(f"plot_count: {len(plot_paths)}")
