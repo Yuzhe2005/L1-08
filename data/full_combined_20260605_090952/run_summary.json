@@ -1,0 +1,1036 @@
+{
+  "run_name": "full_combined_20260608_104350",
+  "data_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+  "created_at_utc": "2026-06-08T02:43:51+00:00",
+  "stages": {
+    "h1_generation": {
+      "run_name": "full_combined_20260608_104350",
+      "profile": "active",
+      "seed_case": "active",
+      "seed": 911204371,
+      "data_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350",
+      "graph_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350",
+      "frequency": {
+        "points": 1001,
+        "f_min_hz": 3500000000.0,
+        "f_max_hz": 4500000000.0
+      },
+      "magnitude_features": [
+        {
+          "name": "slope",
+          "ripple_pp_db": 0.21787798925650792
+        },
+        {
+          "name": "ripple",
+          "ripple_pp_db": 0.4405890430305054
+        },
+        {
+          "name": "notch_bump",
+          "ripple_pp_db": 0.2633515699983649
+        },
+        {
+          "name": "edge_rolloff",
+          "ripple_pp_db": 0.16878230969425329
+        },
+        {
+          "name": "measurement_noise",
+          "ripple_pp_db": 0.05856563072550823
+        }
+      ],
+      "phase_features": [
+        {
+          "name": "linear_phase_delay",
+          "phase_min_rad": -43.00892885156242,
+          "phase_max_rad": -33.451389106770776
+        },
+        {
+          "name": "phase_ripple",
+          "phase_min_rad": -0.1446751634876649,
+          "phase_max_rad": 0.14983654746593364
+        },
+        {
+          "name": "local_phase_distortion",
+          "phase_min_rad": -0.14341974934030657,
+          "phase_max_rad": 0.12830612778062256
+        },
+        {
+          "name": "group_delay_ripple",
+          "phase_min_rad": -0.04541166319291982,
+          "phase_max_rad": 0.04864380460722066
+        },
+        {
+          "name": "phase_noise",
+          "phase_min_rad": -0.009642932686309497,
+          "phase_max_rad": 0.011411137235612675
+        }
+      ],
+      "magnitude_combined_ripple_pp_db": 0.6685678959998707,
+      "phase_combined_min_rad": -42.89803354683691,
+      "phase_combined_max_rad": -33.55264754018096,
+      "phase_group_delay_mean_ns": 1.4880933042350042,
+      "phase_group_delay_positive_ratio": 0.995004995004995,
+      "outputs": {
+        "magnitude_combined_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\h1_full_combined_random\\magnitude_combined.csv",
+        "phase_combined_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\h1_full_combined_random\\phase_combined.csv",
+        "together_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\h1_full_combined_random\\together.csv",
+        "plots": [
+          "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\h1_full_combined_random\\magnitude_combined_magnitude.png",
+          "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\h1_full_combined_random\\phase_combined_phase.png"
+        ]
+      }
+    },
+    "h2_target_generation": {
+      "input_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\h1_full_combined_random\\magnitude_combined.csv",
+      "output_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_h2_target\\h2_target.csv",
+      "plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\l1_08_h2_target\\h2_target.png",
+      "reference_gain_db": 0.0,
+      "points": 1001,
+      "f_min_hz": 3500000000.0,
+      "f_max_hz": 4500000000.0,
+      "h1_ripple_before_db": 0.668567896,
+      "h1_plus_h2_target_ripple_db": 0.0
+    },
+    "h2_fir_design": {
+      "input_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_h2_target\\h2_target.csv",
+      "coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_h2_fir_design\\h2_fir_coefficients.csv",
+      "response_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_h2_fir_design\\h2_actual_response.csv",
+      "plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\l1_08_h2_fir_design\\h2_fir_design.png",
+      "fs_hz": 12000000000.0,
+      "tap_num": 64,
+      "regularization": 0.0001,
+      "group_delay_samples": 31.5,
+      "points": 1001,
+      "f_min_hz": 3500000000.0,
+      "f_max_hz": 4500000000.0,
+      "ripple_before_db": 0.668567896,
+      "ripple_after_db": 0.10979911774488148,
+      "meets_0p1db_target": false,
+      "max_abs_coeff": 1.2740878625484995,
+      "coeff_symmetry_max_error": 0.0
+    },
+    "fixed_point_coefficient_quantization": {
+      "coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_h2_fir_design\\h2_fir_coefficients.csv",
+      "target_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_h2_target\\h2_target.csv",
+      "output_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_h2_fixed_point\\h2_fir_coefficients_fixed.csv",
+      "response_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_h2_fixed_point\\h2_fixed_point_response.csv",
+      "plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\l1_08_h2_fixed_point\\h2_fixed_point_quantization.png",
+      "fs_hz": 12000000000.0,
+      "coeff_total_bits": 16,
+      "coeff_frac_bits": 13,
+      "coeff_lsb": 0.0001220703125,
+      "coeff_min_value": -4.0,
+      "coeff_max_value": 3.9998779296875,
+      "tap_num": 64,
+      "saturation_count": 0,
+      "max_abs_coeff_float": 1.2740878625484995,
+      "max_abs_coeff_fixed": 1.2740478515625,
+      "coeff_max_abs_error": 5.9887606103870006e-05,
+      "coeff_rms_error": 3.7520074659974146e-05,
+      "coeff_symmetry_max_error": 0.0,
+      "ripple_before_db": 0.668567896,
+      "ripple_after_float_db": 0.10979911774488148,
+      "ripple_after_fixed_db": 0.11418371444334341,
+      "meets_0p1db_target_fixed": false
+    },
+    "behavior_simulation": {
+      "run_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350",
+      "graph_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\l1_08_behavior",
+      "fs_hz": 12000000000.0,
+      "measurement_samples": 65536,
+      "settle_samples": 256,
+      "tone_count": 51,
+      "tone_min_hz": 3550048828.125,
+      "tone_max_hz": 4449829101.5625,
+      "tone_requested_min_hz": 3550000000.0,
+      "tone_requested_max_hz": 4450000000.0,
+      "peak_amplitude": 0.8,
+      "seed": 1401186327,
+      "fir_tap_num": 64,
+      "ripple_after_h1_db": 0.5138362672371376,
+      "ripple_after_fir_db": 0.08358723989743255,
+      "ripple_after_fir_fixed_db": 0.08566495178996661,
+      "meets_0p1db_target": true,
+      "meets_0p1db_target_fixed": true,
+      "expected_group_delay_samples": 31.5,
+      "max_abs_group_delay_error_samples": 2.7853275241795927e-12,
+      "max_abs_fixed_group_delay_error_samples": 2.7853275241795927e-12,
+      "outputs": {
+        "input_iq_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_behavior\\input_iq.csv",
+        "after_h1_iq_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_behavior\\after_h1_iq.csv",
+        "after_fir_iq_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_behavior\\after_fir_iq.csv",
+        "after_fir_fixed_iq_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_behavior\\after_fir_fixed_iq.csv",
+        "multitone_frequencies_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_behavior\\multitone_frequencies.csv",
+        "tone_amplitude_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_behavior\\tone_amplitude_before_after.csv",
+        "magnitude_plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\l1_08_behavior\\l1_08_behavior_multitone.png",
+        "phase_combined_plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\l1_08_behavior\\l1_08_behavior_phase_combined.png"
+      }
+    },
+    "qam_evm_simulation": {
+      "run_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350",
+      "graph_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\l1_08_qam_evm",
+      "fs_hz": 12000000000.0,
+      "samples": 65536,
+      "freq_min_hz": 3550048828.125,
+      "freq_max_hz": 4449829101.5625,
+      "requested_freq_min_hz": 3550000000.0,
+      "requested_freq_max_hz": 4450000000.0,
+      "qam_order": 64,
+      "qam_bin_count": 4915,
+      "peak_amplitude": 0.8,
+      "seed": 703592441,
+      "fir_tap_num": 64,
+      "after_h1_evm_percent": 11.733268476497766,
+      "after_float_fir_evm_percent": 11.551573048995403,
+      "after_fixed_fir_evm_percent": 11.55100561829821,
+      "after_h1_magnitude_only_evm_percent": 1.6331227443979994,
+      "after_float_fir_magnitude_only_evm_percent": 0.23255059596974711,
+      "after_fixed_fir_magnitude_only_evm_percent": 0.23299928562261524,
+      "after_h1_fitted_delay_samples": 17.678978631254044,
+      "after_float_fir_fitted_delay_samples": 49.17897863125404,
+      "after_fixed_fir_fitted_delay_samples": 49.17897863125404,
+      "outputs": {
+        "qam_input_iq_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_qam_evm\\qam_input_iq.csv",
+        "qam_after_h1_iq_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_qam_evm\\qam_after_h1_iq.csv",
+        "qam_after_fir_iq_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_qam_evm\\qam_after_fir_iq.csv",
+        "qam_after_fir_fixed_iq_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_qam_evm\\qam_after_fir_fixed_iq.csv",
+        "qam_evm_summary_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_qam_evm\\qam_evm_summary.csv",
+        "qam_constellation_points_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350\\l1_08_qam_evm\\qam_constellation_points.csv",
+        "qam_evm_plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350\\l1_08_qam_evm\\l1_08_qam_evm.png"
+      }
+    },
+    "l1_09_fix_allpass_iir_fixed": {
+      "output_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed",
+      "float_coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_coefficients.csv",
+      "fixed_coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_coefficients_fixed.csv",
+      "total_bits": 18,
+      "frac_bits": 15,
+      "coeff_lsb": 3.0517578125e-05,
+      "saturation_count": 0,
+      "max_abs_coeff_error": 1.5208330250038316e-05,
+      "rms_coeff_error": 8.819765321367352e-06,
+      "max_pole_radius": 0.9545807274580685,
+      "stable": true,
+      "outputs": {
+        "coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_coefficients_fixed.csv",
+        "response_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_fixed_response.csv",
+        "metrics_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_fixed_metrics.csv",
+        "plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_fixed_quantization.png"
+      }
+    },
+    "l1_09_fix_evm_lin_float": {
+      "run_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+      "output_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_evm_lin_float",
+      "allpass_coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_coefficients.csv",
+      "allpass_coeff_mode": "float",
+      "fs_hz": 12000000000.0,
+      "freq_min_hz": 3550000000.0,
+      "freq_max_hz": 4450000000.0,
+      "point_count": 901,
+      "metrics": {
+        "after_h1": {
+          "evm_lin_percent": 11.614516901966104,
+          "magnitude_only_evm_percent": 1.769355765670069,
+          "phase_only_evm_percent": 11.374247559226525,
+          "fitted_delay_samples": 17.67831444502866
+        },
+        "after_l1_08_fixed_fir": {
+          "evm_lin_percent": 11.433072097807955,
+          "magnitude_only_evm_percent": 0.6952206083444422,
+          "phase_only_evm_percent": 11.3737208015097,
+          "fitted_delay_samples": 49.17831444502867
+        },
+        "after_l1_08_fixed_fir_plus_l1_09_allpass": {
+          "evm_lin_percent": 1.1872169285530731,
+          "magnitude_only_evm_percent": 0.24209924354017032,
+          "phase_only_evm_percent": 1.1619770037799824,
+          "fitted_delay_samples": 117.77276542402592
+        }
+      },
+      "outputs": {
+        "summary_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_evm_lin_float\\evm_lin_summary.csv",
+        "per_frequency_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_evm_lin_float\\evm_lin_per_frequency.csv",
+        "plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_evm_lin_float\\evm_lin.png"
+      }
+    },
+    "l1_09_fix_qam_evm_iir_float": {
+      "run_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+      "output_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_float",
+      "allpass_coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_coefficients.csv",
+      "allpass_response_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_response.csv",
+      "allpass_coeff_mode": "float",
+      "allpass_section_count": 8,
+      "allpass_design_f_min_hz": 3500000000.0,
+      "allpass_design_f_max_hz": 4500000000.0,
+      "fs_hz": 12000000000.0,
+      "samples": 65536,
+      "iir_settle_blocks": 0,
+      "freq_min_hz": 3550048828.125,
+      "freq_max_hz": 4449829101.5625,
+      "qam_order": 64,
+      "qam_bin_count": 4915,
+      "peak_amplitude": 0.8,
+      "seed": 703592441,
+      "after_h1_evm_percent": 11.733268476497766,
+      "after_l1_08_fixed_evm_percent": 11.55100561829821,
+      "after_l1_08_plus_l1_09_evm_percent": 3.3975180737483823,
+      "after_h1_magnitude_only_evm_percent": 1.6331227443979994,
+      "after_l1_08_fixed_magnitude_only_evm_percent": 0.23299928562261524,
+      "after_l1_08_plus_l1_09_magnitude_only_evm_percent": 2.2634692618006658,
+      "outputs": {
+        "summary_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_float\\l1_09_qam_evm_summary.csv",
+        "per_bin_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_float\\l1_09_qam_per_bin.csv",
+        "plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_float\\l1_09_qam_evm.png"
+      }
+    },
+    "l1_09_fix_evm_lin_fixed": {
+      "run_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+      "output_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_evm_lin_fixed",
+      "allpass_coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_coefficients_fixed.csv",
+      "allpass_coeff_mode": "fixed",
+      "fs_hz": 12000000000.0,
+      "freq_min_hz": 3550000000.0,
+      "freq_max_hz": 4450000000.0,
+      "point_count": 901,
+      "metrics": {
+        "after_h1": {
+          "evm_lin_percent": 11.614516901966104,
+          "magnitude_only_evm_percent": 1.769355765670069,
+          "phase_only_evm_percent": 11.374247559226525,
+          "fitted_delay_samples": 17.67831444502866
+        },
+        "after_l1_08_fixed_fir": {
+          "evm_lin_percent": 11.433072097807955,
+          "magnitude_only_evm_percent": 0.6952206083444422,
+          "phase_only_evm_percent": 11.3737208015097,
+          "fitted_delay_samples": 49.17831444502867
+        },
+        "after_l1_08_fixed_fir_plus_l1_09_allpass": {
+          "evm_lin_percent": 1.1855845834442578,
+          "magnitude_only_evm_percent": 0.24209865721230467,
+          "phase_only_evm_percent": 1.1603186560174383,
+          "fitted_delay_samples": 117.77017810826575
+        }
+      },
+      "outputs": {
+        "summary_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_evm_lin_fixed\\evm_lin_summary.csv",
+        "per_frequency_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_evm_lin_fixed\\evm_lin_per_frequency.csv",
+        "plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_evm_lin_fixed\\evm_lin.png"
+      }
+    },
+    "l1_09_fix_qam_evm_iir_fixed": {
+      "run_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+      "output_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_fixed",
+      "allpass_coefficients_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_coefficients_fixed.csv",
+      "allpass_response_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_fixed_response.csv",
+      "allpass_coeff_mode": "fixed",
+      "allpass_section_count": 8,
+      "allpass_design_f_min_hz": 3500000000.0,
+      "allpass_design_f_max_hz": 4500000000.0,
+      "fs_hz": 12000000000.0,
+      "samples": 65536,
+      "iir_settle_blocks": 0,
+      "freq_min_hz": 3550048828.125,
+      "freq_max_hz": 4449829101.5625,
+      "qam_order": 64,
+      "qam_bin_count": 4915,
+      "peak_amplitude": 0.8,
+      "seed": 703592441,
+      "after_h1_evm_percent": 11.733268476497766,
+      "after_l1_08_fixed_evm_percent": 11.55100561829821,
+      "after_l1_08_plus_l1_09_evm_percent": 3.396712745966562,
+      "after_h1_magnitude_only_evm_percent": 1.6331227443979994,
+      "after_l1_08_fixed_magnitude_only_evm_percent": 0.23299928562261524,
+      "after_l1_08_plus_l1_09_magnitude_only_evm_percent": 2.2634543907166713,
+      "outputs": {
+        "summary_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_fixed\\l1_09_qam_evm_summary.csv",
+        "per_bin_csv": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_fixed\\l1_09_qam_per_bin.csv",
+        "plot": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_fixed\\l1_09_qam_evm.png"
+      }
+    },
+    "l1_09_fix_full_pipeline": {
+      "run_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+      "graph_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952",
+      "validation_coeff_mode": "both",
+      "validation_modes": [
+        "float",
+        "fixed"
+      ],
+      "allpass_sections": 8,
+      "allpass_margin_ns": null,
+      "allpass_smooth_window": 31,
+      "coeff_total_bits": 18,
+      "coeff_frac_bits": 15,
+      "skip_evm_lin": false,
+      "skip_qam_evm": false,
+      "stage_count": 7,
+      "stages": [
+        {
+          "name": "l1_09_fix_group_delay_analysis",
+          "purpose": "Analyze pre-L1-09 phase/group delay from H1 cascaded with the L1-08 fixed FIR.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1_09_sim\\L1_09_group_delay_analyzer.py",
+            "--h1-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\h1_full_combined_random\\together.csv",
+            "--h2-fixed-response-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_08_h2_fixed_point\\h2_fixed_point_response.csv",
+            "--data-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_group_delay",
+            "--graph-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_group_delay"
+          ]
+        },
+        {
+          "name": "l1_09_fix_allpass_iir_float_design",
+          "purpose": "Design the floating-point fs-based all-pass IIR equalizer.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1_09_sim\\L1_09_allpass_designer.py",
+            "--input-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_group_delay\\group_delay_analysis.csv",
+            "--output-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs",
+            "--graph-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs",
+            "--sections",
+            "8",
+            "--smooth-window",
+            "31"
+          ]
+        },
+        {
+          "name": "l1_09_fix_allpass_iir_fixed_quantization",
+          "purpose": "Quantize the all-pass IIR SOS coefficients and check fixed-point stability.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1_09_sim\\L1_09_fixed_point_quantizer.py",
+            "--run-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+            "--coefficients-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_coefficients.csv",
+            "--response-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_response.csv",
+            "--output-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed",
+            "--graph-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed",
+            "--coeff-total-bits",
+            "18",
+            "--coeff-frac-bits",
+            "15"
+          ]
+        },
+        {
+          "name": "l1_09_fix_evm_lin_float",
+          "purpose": "Compute EVM_LIN using float all-pass coefficients.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1_09_sim\\L1_09_evm_lin_calculator.py",
+            "--run-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+            "--coeff-mode",
+            "float",
+            "--allpass-coefficients-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_coefficients.csv",
+            "--output-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_evm_lin_float",
+            "--graph-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_evm_lin_float"
+          ]
+        },
+        {
+          "name": "l1_09_fix_qam_evm_iir_float",
+          "purpose": "Validate QAM-loaded IF EVM using float all-pass coefficients.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1_09_sim\\L1_09_qam_evm_validator.py",
+            "--run-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+            "--coeff-mode",
+            "float",
+            "--allpass-coefficients-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_coefficients.csv",
+            "--allpass-response-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fs\\allpass_response.csv",
+            "--output-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_float",
+            "--graph-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_float"
+          ]
+        },
+        {
+          "name": "l1_09_fix_evm_lin_fixed",
+          "purpose": "Compute EVM_LIN using fixed all-pass coefficients.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1_09_sim\\L1_09_evm_lin_calculator.py",
+            "--run-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+            "--coeff-mode",
+            "fixed",
+            "--allpass-coefficients-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_coefficients_fixed.csv",
+            "--output-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_evm_lin_fixed",
+            "--graph-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_evm_lin_fixed"
+          ]
+        },
+        {
+          "name": "l1_09_fix_qam_evm_iir_fixed",
+          "purpose": "Validate QAM-loaded IF EVM using fixed all-pass coefficients.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1_09_sim\\L1_09_qam_evm_validator.py",
+            "--run-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952",
+            "--coeff-mode",
+            "fixed",
+            "--allpass-coefficients-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_coefficients_fixed.csv",
+            "--allpass-response-csv",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_allpass_iir_fixed\\allpass_fixed_response.csv",
+            "--output-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_fixed",
+            "--graph-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952\\l1_09_fix_qam_evm_iir_fixed"
+          ]
+        }
+      ]
+    },
+    "full_l1_08_l1_09_pipeline": {
+      "run_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350",
+      "graph_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260608_104350",
+      "profile": "active",
+      "validation_coeff_mode": "both",
+      "skip_l1_08_qam_evm": false,
+      "skip_evm_lin": false,
+      "skip_l1_09_qam_evm": false,
+      "stages": [
+        {
+          "name": "l1_08_full_pipeline",
+          "purpose": "Generate H1 and run the complete L1-08 FIR/fixed-point/behavior pipeline.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1-08_sim\\run_all_pipeline.py"
+          ]
+        },
+        {
+          "name": "l1_09_fix_full_pipeline",
+          "purpose": "Run L1-09 group-delay analysis, all-pass design, quantization, and validation on the L1-08 run.",
+          "command": [
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\.venv\\Scripts\\python.exe",
+            "-u",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\L1_09_sim\\run_all_l1_09_pipeline.py",
+            "--run-dir",
+            "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\data\\full_combined_20260608_104350",
+            "--validation-coeff-mode",
+            "both"
+          ]
+        }
+      ]
+    }
+  },
+  "stage_history": [
+    {
+      "stage": "h1_generation",
+      "updated_at_utc": "2026-06-08T02:43:51+00:00"
+    },
+    {
+      "stage": "h2_target_generation",
+      "updated_at_utc": "2026-06-08T02:43:52+00:00"
+    },
+    {
+      "stage": "h2_fir_design",
+      "updated_at_utc": "2026-06-08T02:43:55+00:00"
+    },
+    {
+      "stage": "fixed_point_coefficient_quantization",
+      "updated_at_utc": "2026-06-08T02:43:58+00:00"
+    },
+    {
+      "stage": "behavior_simulation",
+      "updated_at_utc": "2026-06-08T02:44:03+00:00"
+    },
+    {
+      "stage": "qam_evm_simulation",
+      "updated_at_utc": "2026-06-08T02:44:08+00:00"
+    },
+    {
+      "stage": "l1_09_fix_allpass_iir_fixed",
+      "updated_at_utc": "2026-06-08T02:44:16+00:00"
+    },
+    {
+      "stage": "l1_09_fix_evm_lin_float",
+      "updated_at_utc": "2026-06-08T02:44:18+00:00"
+    },
+    {
+      "stage": "l1_09_fix_qam_evm_iir_float",
+      "updated_at_utc": "2026-06-08T02:44:23+00:00"
+    },
+    {
+      "stage": "l1_09_fix_evm_lin_fixed",
+      "updated_at_utc": "2026-06-08T02:44:25+00:00"
+    },
+    {
+      "stage": "l1_09_fix_qam_evm_iir_fixed",
+      "updated_at_utc": "2026-06-08T02:44:30+00:00"
+    },
+    {
+      "stage": "l1_09_fix_full_pipeline",
+      "updated_at_utc": "2026-06-08T02:44:30+00:00"
+    },
+    {
+      "stage": "full_l1_08_l1_09_pipeline",
+      "updated_at_utc": "2026-06-08T02:44:30+00:00"
+    },
+    {
+      "stage": "l1_09_fix_allpass_iir_fixed",
+      "updated_at_utc": "2026-06-08T03:23:50+00:00"
+    },
+    {
+      "stage": "l1_09_fix_evm_lin_float",
+      "updated_at_utc": "2026-06-08T03:23:52+00:00"
+    },
+    {
+      "stage": "l1_09_fix_qam_evm_iir_float",
+      "updated_at_utc": "2026-06-08T03:23:57+00:00"
+    },
+    {
+      "stage": "l1_09_fix_evm_lin_fixed",
+      "updated_at_utc": "2026-06-08T03:23:59+00:00"
+    },
+    {
+      "stage": "l1_09_fix_qam_evm_iir_fixed",
+      "updated_at_utc": "2026-06-08T03:24:03+00:00"
+    },
+    {
+      "stage": "l1_09_fix_full_pipeline",
+      "updated_at_utc": "2026-06-08T03:24:04+00:00"
+    }
+  ],
+  "updated_at_utc": "2026-06-08T03:24:04+00:00",
+  "graph_dir": "C:\\Users\\bjwb0005\\Documents\\Rigol_work\\L1-08+L1-09\\graph\\full_combined_20260605_090952",
+  "experiment_config": {
+    "active": {
+      "common": {
+        "fs_hz": 12000000000.0
+      },
+      "h1": {
+        "seed": 911204371
+      },
+      "h1_random_model": {
+        "frequency_grid": {
+          "f_min_hz": 3500000000.0,
+          "f_max_hz": 4500000000.0,
+          "num_points": 1001
+        },
+        "magnitude": {
+          "slope": {
+            "slope_pp_db_min": 0.0,
+            "slope_pp_db_max": 0.4,
+            "offset_db_min": -0.02,
+            "offset_db_max": 0.02
+          },
+          "ripple": {
+            "component_count_min": 1,
+            "component_count_max": 4,
+            "amplitude_db_min": 0.02,
+            "amplitude_db_max": 0.12,
+            "cycles_min": 0.5,
+            "cycles_max": 5.0
+          },
+          "notch_bump": {
+            "feature_count_min": 1,
+            "feature_count_max": 4,
+            "amplitude_db_min": 0.05,
+            "amplitude_db_max": 0.35,
+            "width_fraction_min": 0.03,
+            "width_fraction_max": 0.15,
+            "center_fraction_min": 0.05,
+            "center_fraction_max": 0.95
+          },
+          "edge_rolloff": {
+            "edge_depth_db_min": 0.05,
+            "edge_depth_db_max": 0.35,
+            "width_fraction_min": 0.05,
+            "width_fraction_max": 0.25
+          },
+          "measurement_noise": {
+            "noise_std_db_min": 0.002,
+            "noise_std_db_max": 0.01
+          }
+        },
+        "phase": {
+          "linear_phase_delay": {
+            "delay_ns_min": 1.0,
+            "delay_ns_max": 4.0,
+            "allow_negative_delay": false
+          },
+          "phase_ripple": {
+            "component_count_min": 1,
+            "component_count_max": 4,
+            "amplitude_rad_min": 0.02,
+            "amplitude_rad_max": 0.2,
+            "cycles_min": 0.5,
+            "cycles_max": 5.0
+          },
+          "local_phase_distortion": {
+            "feature_count_min": 1,
+            "feature_count_max": 4,
+            "amplitude_rad_min": 0.03,
+            "amplitude_rad_max": 0.3,
+            "width_fraction_min": 0.03,
+            "width_fraction_max": 0.15,
+            "center_fraction_min": 0.05,
+            "center_fraction_max": 0.95
+          },
+          "group_delay_ripple": {
+            "component_count_min": 1,
+            "component_count_max": 3,
+            "delay_ripple_ns_min": 0.02,
+            "delay_ripple_ns_max": 0.2,
+            "cycles_min": 0.5,
+            "cycles_max": 4.0
+          },
+          "phase_noise": {
+            "noise_std_rad_min": 0.001,
+            "noise_std_rad_max": 0.01
+          }
+        }
+      },
+      "h2_fir": {
+        "tap_num": 64,
+        "regularization": 0.0001
+      },
+      "behavior": {
+        "samples": 65536,
+        "settle_samples": 256,
+        "tone_count": 51,
+        "tone_min_hz": 3550000000.0,
+        "tone_max_hz": 4450000000.0,
+        "peak_amplitude": 0.8,
+        "seed": 1401186327
+      },
+      "fixed_point": {
+        "coeff_total_bits": 16,
+        "coeff_frac_bits": 13
+      }
+    },
+    "profiles": {
+      "bw_500m": {
+        "common": {
+          "fs_hz": 24000000000.0
+        },
+        "h1": {
+          "seed": 1040330957
+        },
+        "h1_random_model": {
+          "frequency_grid": {
+            "f_min_hz": 5750000000.0,
+            "f_max_hz": 6250000000.0,
+            "num_points": 1001
+          },
+          "magnitude": {
+            "slope": {
+              "slope_pp_db_max": 0.18
+            },
+            "ripple": {
+              "amplitude_db_max": 0.06,
+              "cycles_max": 3.0
+            },
+            "notch_bump": {
+              "amplitude_db_max": 0.12,
+              "feature_count_max": 2
+            },
+            "edge_rolloff": {
+              "edge_depth_db_max": 0.12
+            },
+            "measurement_noise": {
+              "noise_std_db_max": 0.004
+            }
+          },
+          "phase": {
+            "linear_phase_delay": {
+              "delay_ns_min": 0.4,
+              "delay_ns_max": 1.2,
+              "allow_negative_delay": false
+            },
+            "phase_ripple": {
+              "amplitude_rad_max": 0.06,
+              "cycles_max": 3.0
+            },
+            "local_phase_distortion": {
+              "amplitude_rad_max": 0.1,
+              "feature_count_max": 2
+            },
+            "group_delay_ripple": {
+              "delay_ripple_ns_max": 0.06
+            },
+            "phase_noise": {
+              "noise_std_rad_max": 0.003
+            }
+          }
+        },
+        "behavior": {
+          "tone_min_hz": 5775000000.0,
+          "tone_max_hz": 6225000000.0,
+          "seed": 1068822328
+        }
+      },
+      "bw_1g": {
+        "common": {
+          "fs_hz": 24000000000.0
+        },
+        "h1": {
+          "seed": 297216821
+        },
+        "h1_random_model": {
+          "frequency_grid": {
+            "f_min_hz": 5500000000.0,
+            "f_max_hz": 6500000000.0,
+            "num_points": 1001
+          }
+        },
+        "behavior": {
+          "tone_min_hz": 5550000000.0,
+          "tone_max_hz": 6450000000.0,
+          "seed": 953625061
+        }
+      },
+      "bw_2g": {
+        "common": {
+          "fs_hz": 24000000000.0
+        },
+        "h1": {
+          "seed": 1571318759
+        },
+        "h1_random_model": {
+          "frequency_grid": {
+            "f_min_hz": 5000000000.0,
+            "f_max_hz": 7000000000.0,
+            "num_points": 1601
+          },
+          "magnitude": {
+            "slope": {
+              "slope_pp_db_max": 0.55
+            },
+            "ripple": {
+              "amplitude_db_max": 0.16,
+              "cycles_max": 6.0
+            },
+            "notch_bump": {
+              "amplitude_db_max": 0.45
+            },
+            "edge_rolloff": {
+              "edge_depth_db_max": 0.45
+            },
+            "measurement_noise": {
+              "noise_std_db_max": 0.012
+            }
+          },
+          "phase": {
+            "linear_phase_delay": {
+              "delay_ns_min": 1.5,
+              "delay_ns_max": 5.0,
+              "allow_negative_delay": false
+            },
+            "phase_ripple": {
+              "amplitude_rad_max": 0.28,
+              "cycles_max": 6.0
+            },
+            "local_phase_distortion": {
+              "amplitude_rad_max": 0.45
+            },
+            "group_delay_ripple": {
+              "delay_ripple_ns_max": 0.3
+            },
+            "phase_noise": {
+              "noise_std_rad_max": 0.012
+            }
+          }
+        },
+        "behavior": {
+          "tone_min_hz": 5100000000.0,
+          "tone_max_hz": 6900000000.0,
+          "tone_count": 101,
+          "seed": 1925817879
+        }
+      },
+      "bw_4g": {
+        "common": {
+          "fs_hz": 24000000000.0
+        },
+        "h1": {
+          "seed": 312907005
+        },
+        "h1_random_model": {
+          "frequency_grid": {
+            "f_min_hz": 4000000000.0,
+            "f_max_hz": 8000000000.0,
+            "num_points": 2001
+          },
+          "magnitude": {
+            "slope": {
+              "slope_pp_db_max": 0.75
+            },
+            "ripple": {
+              "amplitude_db_max": 0.2,
+              "cycles_max": 7.0
+            },
+            "notch_bump": {
+              "amplitude_db_max": 0.6,
+              "feature_count_max": 5
+            },
+            "edge_rolloff": {
+              "edge_depth_db_max": 0.6
+            },
+            "measurement_noise": {
+              "noise_std_db_max": 0.015
+            }
+          },
+          "phase": {
+            "linear_phase_delay": {
+              "delay_ns_min": 2.0,
+              "delay_ns_max": 6.0,
+              "allow_negative_delay": false
+            },
+            "phase_ripple": {
+              "amplitude_rad_max": 0.4,
+              "cycles_max": 7.0
+            },
+            "local_phase_distortion": {
+              "amplitude_rad_max": 0.65,
+              "feature_count_max": 5
+            },
+            "group_delay_ripple": {
+              "delay_ripple_ns_max": 0.45
+            },
+            "phase_noise": {
+              "noise_std_rad_max": 0.015
+            }
+          }
+        },
+        "behavior": {
+          "tone_min_hz": 4200000000.0,
+          "tone_max_hz": 7800000000.0,
+          "tone_count": 151,
+          "seed": 1942894188
+        }
+      },
+      "bw_8g": {
+        "common": {
+          "fs_hz": 24000000000.0
+        },
+        "h1": {
+          "seed": 685773661
+        },
+        "h1_random_model": {
+          "frequency_grid": {
+            "f_min_hz": 2000000000.0,
+            "f_max_hz": 10000000000.0,
+            "num_points": 3201
+          },
+          "magnitude": {
+            "slope": {
+              "slope_pp_db_max": 1.0
+            },
+            "ripple": {
+              "amplitude_db_max": 0.25,
+              "cycles_max": 9.0
+            },
+            "notch_bump": {
+              "amplitude_db_max": 0.8,
+              "feature_count_max": 6
+            },
+            "edge_rolloff": {
+              "edge_depth_db_max": 0.8
+            },
+            "measurement_noise": {
+              "noise_std_db_max": 0.02
+            }
+          },
+          "phase": {
+            "linear_phase_delay": {
+              "delay_ns_min": 2.5,
+              "delay_ns_max": 8.0,
+              "allow_negative_delay": false
+            },
+            "phase_ripple": {
+              "amplitude_rad_max": 0.55,
+              "cycles_max": 9.0
+            },
+            "local_phase_distortion": {
+              "amplitude_rad_max": 0.85,
+              "feature_count_max": 6
+            },
+            "group_delay_ripple": {
+              "delay_ripple_ns_max": 0.7
+            },
+            "phase_noise": {
+              "noise_std_rad_max": 0.02
+            }
+          }
+        },
+        "behavior": {
+          "tone_min_hz": 2400000000.0,
+          "tone_max_hz": 9600000000.0,
+          "tone_count": 201,
+          "seed": 1237633613
+        }
+      }
+    },
+    "sweep": {
+      "profiles": [
+        "bw_500m",
+        "bw_1g",
+        "bw_2g",
+        "bw_4g",
+        "bw_8g"
+      ],
+      "tap_num": [
+        32,
+        48,
+        64,
+        80,
+        96
+      ],
+      "regularization": [
+        0.0,
+        1e-06,
+        1e-05,
+        0.0001,
+        0.001
+      ],
+      "tone_count": [
+        51,
+        101,
+        201
+      ],
+      "samples": [
+        65536,
+        131072
+      ],
+      "coeff_total_bits": [
+        12,
+        14,
+        16,
+        18
+      ],
+      "coeff_frac_bits": [
+        10,
+        12,
+        14,
+        16
+      ]
+    }
+  }
+}

@@ -129,6 +129,10 @@ def load_group_delay_csv(input_csv: Path) -> GroupDelayInput:
 
 
 def default_output_dir(input_data: GroupDelayInput) -> Path:
+    return DATA_ROOT / input_data.run_name / "l1_09_fix_allpass_iir_fs"
+
+
+def default_graph_dir(input_data: GroupDelayInput) -> Path:
     return GRAPH_ROOT / input_data.run_name / "l1_09_fix_allpass_iir_fs"
 
 
@@ -495,7 +499,13 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=None,
-        help="Output directory. Defaults to graph/<run_name>/l1_09_fix_allpass_iir_fs.",
+        help="Data output directory. Defaults to data/<run_name>/l1_09_fix_allpass_iir_fs.",
+    )
+    parser.add_argument(
+        "--graph-dir",
+        type=Path,
+        default=None,
+        help="Graph output directory. Defaults to graph/<run_name>/l1_09_fix_allpass_iir_fs.",
     )
     parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
     parser.add_argument(
@@ -524,6 +534,7 @@ def main() -> None:
     input_csv = args.input_csv or find_latest_group_delay_csv()
     input_data = load_group_delay_csv(input_csv)
     output_dir = args.output_dir or default_output_dir(input_data)
+    graph_dir = args.graph_dir or default_graph_dir(input_data)
 
     design = design_allpass(
         input_data=input_data,
@@ -537,8 +548,8 @@ def main() -> None:
     coefficients_csv = output_dir / "allpass_coefficients.csv"
     response_csv = output_dir / "allpass_response.csv"
     metrics_csv = output_dir / "allpass_metrics.csv"
-    group_delay_plot = output_dir / "group_delay_before_after_l1_09.png"
-    phase_plot = output_dir / "phase_before_after_l1_09.png"
+    group_delay_plot = graph_dir / "group_delay_before_after_l1_09.png"
+    phase_plot = graph_dir / "phase_before_after_l1_09.png"
 
     save_coefficients_csv(design, coefficients_csv)
     save_response_csv(design, response_csv)
@@ -548,6 +559,7 @@ def main() -> None:
 
     print(f"input_csv: {input_csv}")
     print(f"output_dir: {output_dir}")
+    print(f"graph_dir: {graph_dir}")
     print(f"fs_hz: {design.fs_hz:.6f}")
     print(f"section_count: {design.section_count}")
     print(f"target_delay_ns: {design.target_delay_ns:.9f}")

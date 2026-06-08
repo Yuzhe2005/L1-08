@@ -12,6 +12,7 @@ import numpy as np
 L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 L1_08_ROOT = REPO_ROOT / "L1-08_sim"
+DATA_ROOT = REPO_ROOT / "data"
 RESULTS_ROOT = REPO_ROOT / "graph"
 MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_fix_matplotlib" / f"pid_{os.getpid()}"
 
@@ -72,7 +73,7 @@ class QuantizedAllPass:
 
 
 def default_coefficients_csv(run_dir: Path) -> Path:
-    return RESULTS_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fs" / "allpass_coefficients.csv"
+    return DATA_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fs" / "allpass_coefficients.csv"
 
 
 def default_response_csv(coefficients_csv: Path) -> Path:
@@ -80,6 +81,10 @@ def default_response_csv(coefficients_csv: Path) -> Path:
 
 
 def default_output_dir(run_dir: Path) -> Path:
+    return DATA_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fixed"
+
+
+def default_graph_dir(run_dir: Path) -> Path:
     return RESULTS_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fixed"
 
 
@@ -437,12 +442,13 @@ def plot_quantization(design: QuantizedAllPass, output_path: Path) -> None:
     plt.close(fig)
 
 
-def save_outputs(design: QuantizedAllPass) -> None:
+def save_outputs(design: QuantizedAllPass, graph_dir: Path) -> None:
     design.output_dir.mkdir(parents=True, exist_ok=True)
+    graph_dir.mkdir(parents=True, exist_ok=True)
     save_fixed_coefficients_csv(design, design.output_dir / "allpass_coefficients_fixed.csv")
     save_response_csv(design, design.output_dir / "allpass_fixed_response.csv")
     save_metrics_csv(design, design.output_dir / "allpass_fixed_metrics.csv")
-    plot_quantization(design, design.output_dir / "allpass_fixed_quantization.png")
+    plot_quantization(design, graph_dir / "allpass_fixed_quantization.png")
 
 
 def parse_args() -> argparse.Namespace:
@@ -454,7 +460,7 @@ def parse_args() -> argparse.Namespace:
         "--coefficients-csv",
         type=Path,
         default=None,
-        help="Input float allpass_coefficients.csv. Defaults to graph/<run>/l1_09_fix_allpass_iir_fs/allpass_coefficients.csv.",
+        help="Input float allpass_coefficients.csv. Defaults to data/<run>/l1_09_fix_allpass_iir_fs/allpass_coefficients.csv.",
     )
     parser.add_argument(
         "--response-csv",
@@ -462,7 +468,8 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Input float allpass_response.csv. Defaults to the coefficient CSV directory.",
     )
-    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to graph/<run>/l1_09_fix_allpass_iir_fixed.")
+    parser.add_argument("--output-dir", type=Path, default=None, help="Data output directory. Defaults to data/<run>/l1_09_fix_allpass_iir_fixed.")
+    parser.add_argument("--graph-dir", type=Path, default=None, help="Graph output directory. Defaults to graph/<run>/l1_09_fix_allpass_iir_fixed.")
     parser.add_argument("--coeff-total-bits", type=int, default=default_total_bits, help=f"Signed fixed-point coefficient total bits. Default from L1_09_experiment_config.json: {default_total_bits}.")
     parser.add_argument("--coeff-frac-bits", type=int, default=default_frac_bits, help=f"Signed fixed-point coefficient fractional bits. Default from L1_09_experiment_config.json: {default_frac_bits}.")
     return parser.parse_args()
@@ -474,6 +481,7 @@ def main() -> None:
     coefficients_csv = args.coefficients_csv or default_coefficients_csv(run_dir)
     response_csv = args.response_csv or default_response_csv(coefficients_csv)
     output_dir = args.output_dir or default_output_dir(run_dir)
+    graph_dir = args.graph_dir or default_graph_dir(run_dir)
 
     float_allpass = load_float_allpass(coefficients_csv, response_csv)
     design = quantize_allpass(
@@ -482,7 +490,7 @@ def main() -> None:
         total_bits=args.coeff_total_bits,
         frac_bits=args.coeff_frac_bits,
     )
-    save_outputs(design)
+    save_outputs(design, graph_dir)
     summary_path = update_run_summary(
         run_dir,
         "l1_09_fix_allpass_iir_fixed",
@@ -502,14 +510,15 @@ def main() -> None:
                 "coefficients_csv": design.output_dir / "allpass_coefficients_fixed.csv",
                 "response_csv": design.output_dir / "allpass_fixed_response.csv",
                 "metrics_csv": design.output_dir / "allpass_fixed_metrics.csv",
-                "plot": design.output_dir / "allpass_fixed_quantization.png",
+                "plot": graph_dir / "allpass_fixed_quantization.png",
             },
         },
-        graph_dir=design.output_dir,
+        graph_dir=graph_dir,
     )
 
     print(f"run_dir: {run_dir}")
     print(f"output_dir: {design.output_dir}")
+    print(f"graph_dir: {graph_dir}")
     print(f"summary_json: {summary_path}")
     print(f"total_bits: {design.total_bits}")
     print(f"frac_bits: {design.frac_bits}")
@@ -521,7 +530,7 @@ def main() -> None:
     print(f"coefficients_csv: {design.output_dir / 'allpass_coefficients_fixed.csv'}")
     print(f"response_csv: {design.output_dir / 'allpass_fixed_response.csv'}")
     print(f"metrics_csv: {design.output_dir / 'allpass_fixed_metrics.csv'}")
-    print(f"plot: {design.output_dir / 'allpass_fixed_quantization.png'}")
+    print(f"plot: {graph_dir / 'allpass_fixed_quantization.png'}")
 
 
 if __name__ == "__main__":

@@ -9,9 +9,6 @@
 .DS_Store
 Thumbs.db
 sweep_result/
-data/
-results/
-graph/
 
 # LaTeX build artifacts in report/. Keep .tex and .pdf versioned.
 report/*.aux

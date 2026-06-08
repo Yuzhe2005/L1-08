@@ -1,0 +1,16 @@
+metric,value
+h1_csv,C:\Users\bjwb0005\Documents\Rigol_work\L1-08+L1-09\data\full_combined_20260605_090952\h1_full_combined_random\together.csv
+fs_hz,12000000000.000000
+tap_num,2.560000000000e+02
+regularization,1.000000000000e-05
+reference_delay_samples,1.275000000000e+02
+coefficient_count_complex,2.560000000000e+02
+estimated_real_multiplier_count,1.024000000000e+03
+total_magnitude_ripple_db,7.434160681772e-02
+total_magnitude_rms_error_db,1.241863396918e-02
+total_group_delay_mean_ns,1.062604985353e+01
+total_group_delay_ripple_pp_ns,2.144767347147e+00
+phase_error_rms_rad,3.298390324424e-03
+phase_error_max_abs_rad,1.244934926780e-02
+max_abs_coeff,1.423961644257e+00
+coeff_l2_norm,3.712147567671e+00

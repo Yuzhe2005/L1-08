@@ -1,0 +1,43 @@
+{
+  "sweep_name": "plan_b_complex_fir_sweep_test",
+  "description": "Sweep Plan B complex FIR design parameters and fixed-point coefficient settings. Sweep-test outputs are isolated under sweep_result only, with one top-level folder per sweep and one child folder per case.",
+  "input": {
+    "run_dir": "data/full_combined_20260605_090952",
+    "h1_csv": null
+  },
+  "output": {
+    "sweep_result_root": "sweep_result",
+    "sweep_folder_name": null,
+    "save_case_outputs": true,
+    "save_case_graphs": true
+  },
+  "design_sweep": {
+    "fs_hz": 12000000000.0,
+    "tap_num": [
+      128,
+      192,
+      256,
+      320
+    ],
+    "reference_delay_samples": [
+      null
+    ],
+    "regularization": [
+      0.000001,
+      0.00001,
+      0.0001
+    ]
+  },
+  "fixed_point_sweep": {
+    "choices": [
+      {
+        "coeff_total_bits": 16,
+        "coeff_frac_bits": 13
+      },
+      {
+        "coeff_total_bits": 18,
+        "coeff_frac_bits": 15
+      }
+    ]
+  }
+}

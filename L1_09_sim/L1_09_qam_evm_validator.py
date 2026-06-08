@@ -84,11 +84,11 @@ class L109QamEvmRun:
 
 
 def default_allpass_coefficients_csv(run_dir: Path) -> Path:
-    return RESULTS_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fs" / "allpass_coefficients.csv"
+    return DATA_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fs" / "allpass_coefficients.csv"
 
 
 def default_fixed_allpass_coefficients_csv(run_dir: Path) -> Path:
-    return RESULTS_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fixed" / "allpass_coefficients_fixed.csv"
+    return DATA_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fixed" / "allpass_coefficients_fixed.csv"
 
 
 def default_allpass_response_csv(coefficients_csv: Path) -> Path:
@@ -99,6 +99,11 @@ def default_allpass_response_csv(coefficients_csv: Path) -> Path:
 
 
 def default_output_dir(run_dir: Path, coeff_mode: str) -> Path:
+    suffix = "fixed" if coeff_mode == "fixed" else "float"
+    return DATA_ROOT / run_dir.name / f"l1_09_fix_qam_evm_iir_{suffix}"
+
+
+def default_graph_dir(run_dir: Path, coeff_mode: str) -> Path:
     suffix = "fixed" if coeff_mode == "fixed" else "float"
     return RESULTS_ROOT / run_dir.name / f"l1_09_fix_qam_evm_iir_{suffix}"
 
@@ -288,8 +293,9 @@ def run_l1_09_qam_evm_validation(
     )
 
 
-def save_l1_09_qam_outputs(run: L109QamEvmRun) -> None:
+def save_l1_09_qam_outputs(run: L109QamEvmRun, graph_dir: Path) -> None:
     run.output_dir.mkdir(parents=True, exist_ok=True)
+    graph_dir.mkdir(parents=True, exist_ok=True)
     save_iq_csv(run.output_dir / "qam_input_iq.csv", run.input_iq, run.config.fs_hz)
     save_iq_csv(run.output_dir / "qam_after_h1_iq.csv", run.after_h1_iq, run.config.fs_hz)
     save_iq_csv(run.output_dir / "qam_after_l1_08_fixed_iq.csv", run.after_l1_08_fixed_iq, run.config.fs_hz)
@@ -300,7 +306,7 @@ def save_l1_09_qam_outputs(run: L109QamEvmRun) -> None:
     )
     save_evm_summary_csv(run, run.output_dir / "l1_09_qam_evm_summary.csv")
     save_per_bin_csv(run, run.output_dir / "l1_09_qam_per_bin.csv")
-    plot_l1_09_qam_evm(run, run.output_dir / "l1_09_qam_evm.png")
+    plot_l1_09_qam_evm(run, graph_dir / "l1_09_qam_evm.png")
 
 
 def save_evm_summary_csv(run: L109QamEvmRun, output_csv: Path) -> None:
@@ -510,7 +516,8 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Input allpass_response.csv used to recover the design frequency band.",
     )
-    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to graph/<run>/l1_09_fix_qam_evm_iir_<mode>.")
+    parser.add_argument("--output-dir", type=Path, default=None, help="Data output directory. Defaults to data/<run>/l1_09_fix_qam_evm_iir_<mode>.")
+    parser.add_argument("--graph-dir", type=Path, default=None, help="Graph output directory. Defaults to graph/<run>/l1_09_fix_qam_evm_iir_<mode>.")
     parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
     parser.add_argument("--iir-settle-blocks", type=int, default=default_iir_settle_blocks, help=f"Repeated input blocks used before measuring the final block. Default from L1_09_experiment_config.json: {default_iir_settle_blocks}.")
     parser.add_argument("--samples", type=int, default=default_samples, help=f"FFT/block sample count. Default: {default_samples}.")
@@ -534,6 +541,7 @@ def main() -> None:
         coefficients_csv = default_allpass_coefficients_csv(run_dir)
     response_csv = args.allpass_response_csv or default_allpass_response_csv(coefficients_csv)
     output_dir = args.output_dir or default_output_dir(run_dir, args.coeff_mode)
+    graph_dir = args.graph_dir or default_graph_dir(run_dir, args.coeff_mode)
 
     config = QamEvmConfig(
         fs_hz=args.fs_hz,
@@ -547,7 +555,7 @@ def main() -> None:
     )
     allpass = load_allpass_coefficients(coefficients_csv, response_csv)
     run = run_l1_09_qam_evm_validation(run_dir, allpass, config, output_dir, args.iir_settle_blocks)
-    save_l1_09_qam_outputs(run)
+    save_l1_09_qam_outputs(run, graph_dir)
 
     summary_stage_name = f"l1_09_fix_qam_evm_iir_{run.allpass.coeff_mode}"
     summary_path = update_run_summary(
@@ -580,14 +588,15 @@ def main() -> None:
             "outputs": {
                 "summary_csv": run.output_dir / "l1_09_qam_evm_summary.csv",
                 "per_bin_csv": run.output_dir / "l1_09_qam_per_bin.csv",
-                "plot": run.output_dir / "l1_09_qam_evm.png",
+                "plot": graph_dir / "l1_09_qam_evm.png",
             },
         },
-        graph_dir=run.output_dir,
+        graph_dir=graph_dir,
     )
 
     print(f"run_dir: {run.run_dir}")
     print(f"output_dir: {run.output_dir}")
+    print(f"graph_dir: {graph_dir}")
     print(f"summary_json: {summary_path}")
     print(f"allpass_coefficients_csv: {run.allpass.coefficients_csv}")
     print(f"allpass_response_csv: {run.allpass.response_csv}")
@@ -608,7 +617,7 @@ def main() -> None:
     )
     print(f"summary_csv: {run.output_dir / 'l1_09_qam_evm_summary.csv'}")
     print(f"per_bin_csv: {run.output_dir / 'l1_09_qam_per_bin.csv'}")
-    print(f"plot: {run.output_dir / 'l1_09_qam_evm.png'}")
+    print(f"plot: {graph_dir / 'l1_09_qam_evm.png'}")
 
 
 if __name__ == "__main__":

@@ -90,14 +90,16 @@ def build_stages(
     run_name = run_dir.name
     group_delay_data_dir = DATA_ROOT / run_name / "l1_09_fix_group_delay"
     group_delay_graph_dir = RESULTS_ROOT / run_name / "l1_09_fix_group_delay"
-    allpass_dir = RESULTS_ROOT / run_name / "l1_09_fix_allpass_iir_fs"
-    fixed_dir = RESULTS_ROOT / run_name / "l1_09_fix_allpass_iir_fixed"
+    allpass_data_dir = DATA_ROOT / run_name / "l1_09_fix_allpass_iir_fs"
+    allpass_graph_dir = RESULTS_ROOT / run_name / "l1_09_fix_allpass_iir_fs"
+    fixed_data_dir = DATA_ROOT / run_name / "l1_09_fix_allpass_iir_fixed"
+    fixed_graph_dir = RESULTS_ROOT / run_name / "l1_09_fix_allpass_iir_fixed"
 
     group_delay_csv = group_delay_data_dir / "group_delay_analysis.csv"
-    float_coefficients_csv = allpass_dir / "allpass_coefficients.csv"
-    float_response_csv = allpass_dir / "allpass_response.csv"
-    fixed_coefficients_csv = fixed_dir / "allpass_coefficients_fixed.csv"
-    fixed_response_csv = fixed_dir / "allpass_fixed_response.csv"
+    float_coefficients_csv = allpass_data_dir / "allpass_coefficients.csv"
+    float_response_csv = allpass_data_dir / "allpass_response.csv"
+    fixed_coefficients_csv = fixed_data_dir / "allpass_coefficients_fixed.csv"
+    fixed_response_csv = fixed_data_dir / "allpass_fixed_response.csv"
 
     stages = [
         PipelineStage(
@@ -127,7 +129,9 @@ def build_stages(
                 "--input-csv",
                 str(group_delay_csv),
                 "--output-dir",
-                str(allpass_dir),
+                str(allpass_data_dir),
+                "--graph-dir",
+                str(allpass_graph_dir),
                 "--sections",
                 str(allpass_sections),
                 "--smooth-window",
@@ -153,7 +157,9 @@ def build_stages(
                 "--response-csv",
                 str(float_response_csv),
                 "--output-dir",
-                str(fixed_dir),
+                str(fixed_data_dir),
+                "--graph-dir",
+                str(fixed_graph_dir),
                 "--coeff-total-bits",
                 str(coeff_total_bits),
                 "--coeff-frac-bits",
@@ -182,6 +188,8 @@ def build_stages(
                         "--allpass-coefficients-csv",
                         str(coefficients_csv),
                         "--output-dir",
+                        str(DATA_ROOT / run_name / f"l1_09_fix_evm_lin_{mode}"),
+                        "--graph-dir",
                         str(RESULTS_ROOT / run_name / f"l1_09_fix_evm_lin_{mode}"),
                     ],
                 )
@@ -205,6 +213,8 @@ def build_stages(
                         "--allpass-response-csv",
                         str(response_csv),
                         "--output-dir",
+                        str(DATA_ROOT / run_name / f"l1_09_fix_qam_evm_iir_{mode}"),
+                        "--graph-dir",
                         str(RESULTS_ROOT / run_name / f"l1_09_fix_qam_evm_iir_{mode}"),
                     ],
                 )

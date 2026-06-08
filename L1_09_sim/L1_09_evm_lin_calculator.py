@@ -12,6 +12,7 @@ import numpy as np
 L1_09_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = L1_09_ROOT.parent
 L1_08_ROOT = REPO_ROOT / "L1-08_sim"
+DATA_ROOT = REPO_ROOT / "data"
 RESULTS_ROOT = REPO_ROOT / "graph"
 MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_l1_09_fix_matplotlib" / f"pid_{os.getpid()}"
 
@@ -73,14 +74,19 @@ class EvmLinRun:
 
 
 def default_allpass_coefficients_csv(run_dir: Path) -> Path:
-    return RESULTS_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fs" / "allpass_coefficients.csv"
+    return DATA_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fs" / "allpass_coefficients.csv"
 
 
 def default_fixed_allpass_coefficients_csv(run_dir: Path) -> Path:
-    return RESULTS_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fixed" / "allpass_coefficients_fixed.csv"
+    return DATA_ROOT / run_dir.name / "l1_09_fix_allpass_iir_fixed" / "allpass_coefficients_fixed.csv"
 
 
 def default_output_dir(run_dir: Path, coeff_mode: str) -> Path:
+    suffix = "fixed" if coeff_mode == "fixed" else "float"
+    return DATA_ROOT / run_dir.name / f"l1_09_fix_evm_lin_{suffix}"
+
+
+def default_graph_dir(run_dir: Path, coeff_mode: str) -> Path:
     suffix = "fixed" if coeff_mode == "fixed" else "float"
     return RESULTS_ROOT / run_dir.name / f"l1_09_fix_evm_lin_{suffix}"
 
@@ -360,11 +366,12 @@ def plot_evm_lin(run: EvmLinRun, output_path: Path) -> None:
     plt.close(fig)
 
 
-def save_outputs(run: EvmLinRun) -> None:
+def save_outputs(run: EvmLinRun, graph_dir: Path) -> None:
     run.output_dir.mkdir(parents=True, exist_ok=True)
+    graph_dir.mkdir(parents=True, exist_ok=True)
     save_summary_csv(run, run.output_dir / "evm_lin_summary.csv")
     save_per_frequency_csv(run, run.output_dir / "evm_lin_per_frequency.csv")
-    plot_evm_lin(run, run.output_dir / "evm_lin.png")
+    plot_evm_lin(run, graph_dir / "evm_lin.png")
 
 
 def parse_args() -> argparse.Namespace:
@@ -391,7 +398,8 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Input allpass coefficient CSV. Defaults depend on --coeff-mode.",
     )
-    parser.add_argument("--output-dir", type=Path, default=None, help="Output directory. Defaults to graph/<run>/l1_09_fix_evm_lin_<mode>.")
+    parser.add_argument("--output-dir", type=Path, default=None, help="Data output directory. Defaults to data/<run>/l1_09_fix_evm_lin_<mode>.")
+    parser.add_argument("--graph-dir", type=Path, default=None, help="Graph output directory. Defaults to graph/<run>/l1_09_fix_evm_lin_<mode>.")
     parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
     parser.add_argument("--freq-min-hz", type=float, default=default_freq_min_hz, help=f"Minimum frequency for EVM_LIN integration. Default: {default_freq_min_hz:.6g} Hz.")
     parser.add_argument("--freq-max-hz", type=float, default=default_freq_max_hz, help=f"Maximum frequency for EVM_LIN integration. Default: {default_freq_max_hz:.6g} Hz.")
@@ -408,6 +416,7 @@ def main() -> None:
     else:
         allpass_coefficients_csv = default_allpass_coefficients_csv(run_dir)
     output_dir = args.output_dir or default_output_dir(run_dir, args.coeff_mode)
+    graph_dir = args.graph_dir or default_graph_dir(run_dir, args.coeff_mode)
 
     run = run_evm_lin_calculation(
         run_dir=run_dir,
@@ -418,7 +427,7 @@ def main() -> None:
         freq_max_hz=args.freq_max_hz,
     )
 
-    save_outputs(run)
+    save_outputs(run, graph_dir)
     summary_stage_name = f"l1_09_fix_evm_lin_{args.coeff_mode}"
     summary_path = update_run_summary(
         run.run_dir,
@@ -444,14 +453,15 @@ def main() -> None:
             "outputs": {
                 "summary_csv": run.output_dir / "evm_lin_summary.csv",
                 "per_frequency_csv": run.output_dir / "evm_lin_per_frequency.csv",
-                "plot": run.output_dir / "evm_lin.png",
+                "plot": graph_dir / "evm_lin.png",
             },
         },
-        graph_dir=run.output_dir,
+        graph_dir=graph_dir,
     )
 
     print(f"run_dir: {run.run_dir}")
     print(f"output_dir: {run.output_dir}")
+    print(f"graph_dir: {graph_dir}")
     print(f"summary_json: {summary_path}")
     print(f"fs_hz: {run.fs_hz:.6f}")
     print(f"freq_min_hz: {run.freq_hz[0]:.0f}")
@@ -464,7 +474,7 @@ def main() -> None:
         )
     print(f"summary_csv: {run.output_dir / 'evm_lin_summary.csv'}")
     print(f"per_frequency_csv: {run.output_dir / 'evm_lin_per_frequency.csv'}")
-    print(f"plot: {run.output_dir / 'evm_lin.png'}")
+    print(f"plot: {graph_dir / 'evm_lin.png'}")
 
 
 if __name__ == "__main__":
