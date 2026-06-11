@@ -1,0 +1,37 @@
+{
+  "active": {
+    "h2_fir": {
+      "tap_num": 64,
+      "regularization": 0.0001
+    },
+    "fixed_point": {
+      "coeff_total_bits": 16,
+      "coeff_frac_bits": 13
+    },
+    "l1_09": {
+      "allpass": {
+        "sections": 8,
+        "margin_ns": null,
+        "smooth_window": 31
+      },
+      "fixed_point": {
+        "coeff_total_bits": 18,
+        "coeff_frac_bits": 15
+      },
+      "qam_evm": {
+        "coeff_mode": "float",
+        "iir_settle_blocks": 0
+      },
+      "evm_lin": {
+        "coeff_mode": "float"
+      }
+    },
+    "run": {
+      "skip_l1_08_qam_evm": false,
+      "skip_evm_lin": false,
+      "skip_l1_09_qam_evm": false,
+      "validation_coeff_mode": "both",
+      "run_dir": null
+    }
+  }
+}

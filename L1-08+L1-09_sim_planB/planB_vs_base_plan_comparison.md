@@ -14,9 +14,9 @@ Plan B 采用单级补偿结构：
 
 - 使用一个 complex FIR 同时补偿 H1 的 magnitude 和 phase。
 - 当前 sweep 覆盖 tap number、regularization、fixed-point coefficient format。
-- 当前 Plan B 只完成 frequency-domain validation，还没有加入 complex I/Q input 或 QAM/EVM validation。
+- 当前已补齐 baseline QAM/EVM validation：`plan_b_qam_evm_validator.py` 使用和 Base Plan 一致的 QAM input、H1 channel、delay/gain fitting 与 EVM 计算方法，对 Plan B float/fixed complex FIR 做 time-domain filtering 验证。
 
-因此二者目前不是完全同一层级的验证：Base Plan 已经包含 time-domain QAM validation；Plan B 目前主要验证 complex FIR 在频域上是否可行。
+因此现在二者已经可以在同一个 baseline run 上做 QAM/EVM 直接对比。但 Plan B 目前仍只完成单个 baseline run 的 QAM 验证，尚未像 Base Plan/L1-08 sweep 那样完成跨 bandwidth、seed、tap、fixed-point format 的大规模鲁棒性验证。
 
 ## 2. Frequency-Domain 补偿效果
 
@@ -115,16 +115,44 @@ Base Plan 已经完成 QAM/EVM validation：
 - L1-09 all-pass 主要改善 phase / delay distortion。
 - 最终 EVM 从 11.733% 降到 3.397%，说明 Base Plan 的完整链路验证是有效的。
 
-Plan B 当前还没有做这一步。当前 Plan B 只是读取 H1 frequency response，并在 frequency domain 设计 complex FIR；它还没有模拟：
+Plan B 现在已经补齐 baseline QAM/EVM validation。新增脚本：
 
-- complex I/Q input waveform；
-- QAM symbols；
-- H1 channel 对 QAM waveform 的影响；
-- Plan B complex FIR 对 time-domain signal 的 filtering；
-- fixed-point Plan B filtering；
-- final EVM / constellation / per-bin EVM。
+```powershell
+python L1-08+L1-09_sim_planB\plan_b_qam_evm_validator.py --run-dir data\full_combined_20260605_090952
+```
 
-所以现在不能直接说 Plan B 在通信链路性能上已经优于 Base Plan，只能说 Plan B 在 frequency-domain compensation 上表现有潜力。
+该脚本完成：
+
+- 生成和 Base Plan 一致的 QAM-loaded IF input。
+- 使用同一个 H1 frequency response 作用到 QAM waveform。
+- 对 H1 output 分别应用 Plan B float complex FIR 和 fixed complex FIR。
+- 输出 `plan_b_qam_evm_summary.csv`、`plan_b_qam_per_bin.csv` 和 `plan_b_qam_evm.png`。
+
+当前已进一步完成一个小规模 Plan B QAM sweep，覆盖：
+
+```text
+tap_num: 256, 320
+regularization: 1e-6, 1e-5
+fixed-point format: Q18.15
+run: full_combined_20260605_090952
+```
+
+输出位于：
+
+```text
+sweep_result/plan_b_qam_sweep_full_combined_20260605_090952/
+```
+
+小 sweep 的 QAM/EVM 结果如下：
+
+| Plan B case | fixed EVM | fixed magnitude-only EVM | fixed magnitude ripple | multipliers |
+| --- | ---: | ---: | ---: | ---: |
+| 256 tap, 1e-6, Q18.15 | 0.300% | 0.124% | 0.0750 dB | 1024 |
+| 256 tap, 1e-5, Q18.15 | 0.306% | 0.131% | 0.0742 dB | 1024 |
+| 320 tap, 1e-6, Q18.15 | 0.274% | 0.0916% | 0.0610 dB | 1280 |
+| 320 tap, 1e-5, Q18.15 | 0.274% | 0.0924% | 0.0598 dB | 1280 |
+
+从这个 baseline run 看，Plan B fixed complex FIR 的最终 QAM EVM 明显低于 Base Plan fixed all-pass 结果（best 0.274% vs 3.397%）。其中 320 tap 的性能最好，但需要约 1280 个 real multipliers；256 tap 的 EVM 也在 0.30% 左右，资源为约 1024 个 real multipliers。这个结果说明 Plan B 是很强的候选方案，但仍需要跨 seed / bandwidth 做鲁棒性验证，不能只凭一个 run 作为最终架构选择依据。
 
 ## 6. Resource / Complexity 对比
 
@@ -160,13 +188,13 @@ Plan B 的优点：
 - Sweep 结果显示 320 tap / 1e-5 / Q18.15 可以把 fixed magnitude ripple 降到约 0.0598 dB。
 - 256 tap / Q18.15 也可以达到约 0.074 dB ripple，是比较好的资源折中点。
 - fixed-point Q18.15 在最佳区域没有 saturation，量化误差较小。
+- baseline QAM sweep 已补齐；当前 4 个关键 case 均无 saturation，fixed Plan B 可将 full EVM 从 11.733% 降到约 0.274%~0.306%。
 
 Plan B 的不足：
 
-- 当前还没有 complex I/Q 或 QAM input simulation。
-- 当前没有 EVM / constellation validation，因此不能直接和 Base Plan 的最终 EVM 做公平比较。
 - 达到最佳 frequency-domain result 需要 320-tap complex FIR，资源代价高于 Base Plan。
 - group delay 指标没有明显优于 Base Plan 的 all-pass IIR stage。
+- 目前 QAM sweep 只覆盖 baseline run，尚未完成跨 seed / bandwidth / fixed-point format 的鲁棒性验证。
 
 Base Plan 的优点：
 
@@ -183,15 +211,13 @@ Base Plan 的不足：
 
 ## 8. 下一步建议
 
-Plan B 下一步应该补齐 time-domain validation：
+Plan B 的 baseline time-domain validation 和小规模 QAM sweep 已经补齐。下一步应该把验证范围扩展到跨 seed / bandwidth：
 
-1. 生成和 Base Plan 一致的 QAM input / complex I/Q input。
-2. 用 H1 frequency response 或等效 impulse response 作用到 input waveform。
-3. 用 Plan B complex FIR 对 H1 output 做 filtering。
-4. 加入 fixed-point coefficient 和 fixed-point filtering。
-5. 输出 EVM summary、constellation graph、per-bin EVM。
-6. 将 Plan B final EVM 与 Base Plan final EVM 直接比较。
+1. 在至少 3 组 seed 和多个 bandwidth profile 上重复 QAM/EVM 验证。
+2. 重点保留 256 tap / 1e-6 / Q18.15 与 320 tap / 1e-6 / Q18.15 两个候选点。
+3. 增加 Plan B 与 Base Plan 的统一 summary table，包括 final EVM、magnitude-only EVM、group-delay ripple、multiplier estimate、fixed-point saturation。
+4. 如果 Plan B 在跨 seed / bandwidth 上仍稳定，再进一步评估 RTL 资源和延迟是否可以接受。
 
-只有完成这一步之后，才能正式判断 Plan B 是否真正优于 Base Plan。当前阶段的合理表述是：
+当前阶段的合理表述是：
 
-> Plan B 在 frequency-domain compensation 上显示出较强潜力，尤其 320-tap Q18.15 complex FIR 可以取得更低的 magnitude ripple；但它还缺少 QAM/EVM chain validation，因此目前还不能作为完整替代 Base Plan 的结论。
+> Plan B 在 frequency-domain compensation 和 baseline QAM/EVM sweep 上都显示出很强潜力。当前 320-tap Q18.15 fixed complex FIR 在 baseline run 中可将 final QAM EVM 降到约 0.274%，256-tap Q18.15 fixed complex FIR 也可达到约 0.300%，均优于 Base Plan 当前 3.397% 的 fixed all-pass 结果。但 Plan B 的资源代价明显更高，且仍缺少跨 seed / bandwidth 的鲁棒性验证，因此现阶段应作为强候选方案继续扩展验证，而不是立即替代 Base Plan 进入 RTL。

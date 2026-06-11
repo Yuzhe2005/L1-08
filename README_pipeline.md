@@ -26,51 +26,55 @@ Htotal(f) = H1(f) * H2(f)
 Rigol/
 ├── 03-频谱仪算法栈交付物.html
 ├── L1-08_algorithm_design_report.md
-├── L1_08_experiment_config.json
+├── config_input.json         # H1 / behavior / QAM 输入参数
+├── config_base_plan.json     # H2 FIR / fixed-point / L1-09 / run 开关
+├── config_plan_b.json        # Plan B 独立设计参数
 ├── README_pipeline.md
 ├── L1-08_planning/
 │   ├── L1-08.md
 │   └── L1-08.docx
-├── L1-08_sim/
-│   ├── H1_common.py
-│   ├── H1_full_combined_random_generator.py
-│   ├── H2_target_generator.py
-│   ├── H2_fir_designer.py
-│   ├── H2_fixed_point_quantizer.py
-│   ├── L1_08_behavior_sim.py
-│   ├── L1_08_qam_evm_sim.py
-│   ├── L1_08_config.py
-│   ├── L1_08_io_utils.py
-│   ├── L1_08_signal_utils.py
-│   ├── L1_08_run_summary.py
-│   ├── run_all_pipeline.py
-│   ├── data/
-│   ├── graph/
-│   ├── magnitude/
-│   └── phase/
-├── sweep_test/
-│   ├── config.json
-│   ├── run_sweep.py
-│   ├── analyze_sweep_results.py
-│   ├── existing_pipeline_runner.py
-│   ├── sweep_config.py
-│   └── README.md
-└── sweep_result/
-    └── 每轮 sweep 的输出结果
+├── config_base_plan_sweep.json   # Base Plan sweep 参数
+├── config_plan_b_sweep.json      # Plan B sweep 参数
+├── shared_sim/
+│   ├── h1_source.py          # shared H1 generation (CLI entry)
+│   ├── config.py io_utils.py run_summary.py signal_utils.py
+│   ├── h1_common.py qam_utils.py behavior_utils.py
+│   └── magnitude/ phase/
+├── L1-08+L1-09_sim_base_plan/
+│   ├── run_full_l1_08_l1_09_pipeline.py
+│   ├── L1-08_sim/
+│   │   ├── run_all_pipeline.py
+│   │   └── ...
+│   ├── L1_09_sim/
+│   └── sweep_test/
+│       ├── run_sweep.py
+│       └── analyze_sweep_results.py
+├── L1-08+L1-09_sim_planB/
+│   ├── run_all_plan_b_pipeline.py
+│   └── sweep_test/
+│       ├── run_plan_b_sweep.py
+│       └── analyze_plan_b_sweep_results.py
+├── experimental/             # archived planC / past_version
+├── data/ graph/
+└── sweep_result/             # 两套 sweep 的统一输出目录
 ```
 
 其中最重要的是：
 
 | 路径 | 作用 |
 |---|---|
-| `L1_08_experiment_config.json` | 单次 pipeline 的主配置文件 |
-| `L1-08_sim/run_all_pipeline.py` | 一键运行完整 L1-08 pipeline |
-| `L1-08_sim/data/` | 单次 pipeline 的 CSV/JSON 输出 |
+| `config_input.json` | H1、behavior、QAM 等共享输入配置（含 `profiles`） |
+| `config_base_plan.json` | Base Plan：H2 FIR、定点、L1-09、`run` 阶段开关 |
+| `config_plan_b.json` | Plan B：complex FIR 设计、定点、阶段开关、`input.run_dir` |
+| `L1-08+L1-09_sim_base_plan/L1-08_sim/run_all_pipeline.py` | 一键运行完整 L1-08 pipeline（零 CLI 参数） |
+| `L1-08+L1-09_sim_base_plan/run_full_l1_08_l1_09_pipeline.py` | L1-08 + L1-09 全链路 |
+| `data/` | 单次 pipeline 的 CSV/JSON 输出 |
 | `graph/` | 单次 pipeline 的 PNG 图像输出 |
-| `sweep_test_config.json` | sweep test 的配置文件 |
-| `sweep_test/run_sweep.py` | 批量参数扫描程序 |
-| `sweep_test/analyze_sweep_results.py` | sweep 结果分析程序 |
-| `sweep_result/` | sweep 结果保存目录 |
+| `config_base_plan_sweep.json` | Base Plan sweep 参数 |
+| `config_plan_b_sweep.json` | Plan B sweep 参数 |
+| `L1-08+L1-09_sim_base_plan/sweep_test/run_sweep.py` | Base Plan 批量扫描 |
+| `L1-08+L1-09_sim_planB/sweep_test/run_plan_b_sweep.py` | Plan B 批量扫描 |
+| `sweep_result/` | 两套 sweep 的统一输出目录 |
 | `L1-08_algorithm_design_report.md` | 当前算法模拟报告 |
 
 ---
@@ -79,7 +83,7 @@ Rigol/
 
 当前仿真按导师回复后的理解执行：L1-08 补偿发生在 DDC 之前，所以处理对象是 **complex I/Q IF**，不是 centered complex baseband。
 
-主频率设置来自 `L1_08_experiment_config.json`：
+主频率设置来自 `config_input.json` 的 `active.common`：
 
 ```text
 采样率 Fs = 12 GHz
@@ -102,20 +106,15 @@ H1 建模范围留作完整硬件响应边界
 
 ## 3. 主配置文件
 
-单次 pipeline 的主配置文件是：
+项目根目录使用三个 JSON，职责分离：
 
-```text
-L1_08_experiment_config.json
-```
+| 文件 | 内容 |
+|---|---|
+| `config_input.json` | `active` + `profiles`：common / h1 / behavior / qam_evm；`selected_profile` 选带宽 profile |
+| `config_base_plan.json` | `active`：h2_fir / fixed_point / l1_09 / run（skip 开关、validation 模式） |
+| `config_plan_b.json` | `active`：input.run_dir / design / fixed_point / stages |
 
-当前配置分成两个大块：
-
-```json
-{
-  "active": {},
-  "sweep": {}
-}
-```
+用户面向的 pipeline 入口均**无需 CLI 参数**；改参数请编辑对应 JSON。
 
 ### 3.1 active
 
@@ -250,7 +249,7 @@ graph/<run_name>/ 保存 PNG 图像
 脚本：
 
 ```text
-L1-08_sim/H1_full_combined_random_generator.py
+shared_sim/h1_source.py
 ```
 
 作用：

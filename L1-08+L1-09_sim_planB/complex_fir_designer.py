@@ -1,29 +1,20 @@
 import argparse
 import csv
-import hashlib
 import json
 import os
 import sys
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 
 
-PLAN_B_ROOT = Path(__file__).resolve().parent
-REPO_ROOT = PLAN_B_ROOT.parent
-L1_08_ROOT = REPO_ROOT / "L1-08_sim"
-DATA_ROOT = REPO_ROOT / "data"
-GRAPH_ROOT = REPO_ROOT / "graph"
-SWEEP_RESULT_ROOT = REPO_ROOT / "sweep_result"
-MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_plan_b_matplotlib" / f"pid_{os.getpid()}"
+import plan_b_bootstrap  # noqa: F401
+from shared_sim.paths import DATA_ROOT, REPO_ROOT, RESULTS_ROOT as GRAPH_ROOT
 
-for import_path in (L1_08_ROOT, REPO_ROOT):
-    import_text = str(import_path)
-    if import_text not in sys.path:
-        sys.path.insert(0, import_text)
+PLAN_B_ROOT = Path(__file__).resolve().parent
+MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_plan_b_matplotlib" / f"pid_{os.getpid()}"
 
 MPLCONFIG_ROOT.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIG_ROOT))
@@ -34,8 +25,8 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
-from L1_08_config import get_common_config_value
-from L1_08_io_utils import find_latest_ready_run, h1_data_dir
+from shared_sim.config import plan_b_value
+from shared_sim.io_utils import find_latest_h1_run, h1_data_dir
 
 
 STAGE_NAME = "plan_b_complex_fir"
@@ -100,7 +91,7 @@ class PlanBCaseResult:
 
 def resolve_run_dir(run_dir_arg: Path | None) -> Path:
     if run_dir_arg is None:
-        return find_latest_ready_run(DATA_ROOT)
+        return find_latest_h1_run(DATA_ROOT)
 
     candidates = [run_dir_arg] if run_dir_arg.is_absolute() else [REPO_ROOT / run_dir_arg, DATA_ROOT / run_dir_arg]
     for candidate in candidates:
@@ -716,45 +707,6 @@ def parse_optional_path(value: object) -> Path | None:
     return Path(value)
 
 
-def sanitize_case_token(value: object) -> str:
-    text = str(value)
-    return (
-        text.replace("\\", "_")
-        .replace("/", "_")
-        .replace(":", "_")
-        .replace(".", "p")
-        .replace("-", "m")
-        .replace("+", "p")
-        .replace(" ", "_")
-    )
-
-
-def sweep_summary_fieldnames() -> list[str]:
-    return [
-        "case_id",
-        "status",
-        "error",
-        "tap_num",
-        "reference_delay_samples",
-        "regularization",
-        "coeff_total_bits",
-        "coeff_frac_bits",
-        "saturation_count",
-        "estimated_real_multiplier_count",
-        "max_abs_coeff",
-        "max_abs_coeff_fixed",
-        "total_magnitude_ripple_db",
-        "fixed_total_magnitude_ripple_db",
-        "fixed_vs_float_magnitude_error_rms_db",
-        "total_group_delay_ripple_pp_ns",
-        "fixed_total_group_delay_ripple_pp_ns",
-        "phase_error_rms_rad",
-        "fixed_phase_error_rms_rad",
-        "output_dir",
-        "graph_dir",
-    ]
-
-
 def fixed_point_choices(fixed_config: dict) -> list[tuple[int, int]]:
     choices = fixed_config.get("choices")
     if choices is not None:
@@ -777,347 +729,34 @@ def fixed_point_choices(fixed_config: dict) -> list[tuple[int, int]]:
     return [(total_bits, frac_bits) for total_bits in total_bit_values for frac_bits in frac_bit_values]
 
 
-def is_path_inside(child: Path, parent: Path) -> bool:
-    child_resolved = child.resolve()
-    parent_resolved = parent.resolve()
-    return child_resolved == parent_resolved or parent_resolved in child_resolved.parents
-
-
-def resolve_sweep_result_root(output_config: dict) -> Path:
-    sweep_root = parse_optional_path(output_config.get("sweep_result_root"))
-    if sweep_root is None:
-        sweep_root = SWEEP_RESULT_ROOT
-    elif not sweep_root.is_absolute():
-        sweep_root = REPO_ROOT / sweep_root
-
-    if not is_path_inside(sweep_root, SWEEP_RESULT_ROOT):
-        raise ValueError(
-            f"Sweep-test output must stay inside {SWEEP_RESULT_ROOT}. "
-            f"Configured sweep_result_root was {sweep_root}."
-        )
-    return sweep_root
-
-
-def stable_hash_int(payload: object) -> int:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
-    digest = hashlib.sha256(encoded).hexdigest()
-    return int(digest[:8], 16) % 2_000_000_000
-
-
-def h1_seed_label(run_dir: Path) -> str:
-    run_summary = run_dir / "run_summary.json"
-    if run_summary.is_file():
-        try:
-            summary = json.loads(run_summary.read_text(encoding="utf-8"))
-            seed = summary.get("stages", {}).get("h1_generation", {}).get("seed")
-            if seed is not None:
-                return str(seed)
-        except (OSError, json.JSONDecodeError):
-            pass
-    return str(stable_hash_int(str(run_dir)))
-
-
-def sweep_run_folder_name(config: dict, run_dir: Path) -> str:
-    design_hash = stable_hash_int(config.get("design_sweep", {}))
-    fixed_hash = stable_hash_int(config.get("fixed_point_sweep", {}))
-    return f"h1_{h1_seed_label(run_dir)}_planB_behavior_{design_hash}_qam_{fixed_hash}"
-
-
-def create_sweep_run_dir(output_config: dict, config: dict, run_dir: Path) -> Path:
-    sweep_root = resolve_sweep_result_root(output_config)
-
-    folder_name = str(output_config.get("sweep_folder_name") or sweep_run_folder_name(config, run_dir))
-    candidate = sweep_root / folder_name
-    suffix = 1
-    while candidate.exists():
-        candidate = sweep_root / f"{folder_name}_{suffix:02d}"
-        suffix += 1
-    return candidate
-
-
-def sweep_case_definitions(
-    fs_values: list[float],
-    tap_values: list[int],
-    regularization_values: list[float],
-    delay_values: list[object],
-    quantization_choices: list[tuple[int, int]],
-) -> list[dict[str, object]]:
-    cases: list[dict[str, object]] = []
-    for fs_hz in fs_values:
-        for tap_num in tap_values:
-            for regularization in regularization_values:
-                for delay_value in delay_values:
-                    reference_delay = 0.5 * (tap_num - 1) if delay_value is None else float(delay_value)
-                    for coeff_total_bits, coeff_frac_bits in quantization_choices:
-                        case_id = (
-                            f"tap{tap_num}_"
-                            f"delay{sanitize_case_token(reference_delay)}_"
-                            f"reg{sanitize_case_token(f'{regularization:.3e}')}_"
-                            f"q{coeff_total_bits}_{coeff_frac_bits}"
-                        )
-                        cases.append(
-                            {
-                                "case_id": case_id,
-                                "fs_hz": fs_hz,
-                                "tap_num": tap_num,
-                                "reference_delay_samples": reference_delay,
-                                "regularization": regularization,
-                                "coeff_total_bits": coeff_total_bits,
-                                "coeff_frac_bits": coeff_frac_bits,
-                            }
-                        )
-    return cases
-
-
-def write_sweep_parameter_combinations_json(
-    output_json: Path,
-    config_path: Path,
-    config: dict,
-    run_dir: Path,
-    h1_csv: Path,
-    sweep_run_dir: Path,
-    sweep_output_root: Path,
-    cases: list[dict[str, object]],
-) -> None:
-    output_json.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "source_config": str(config_path),
-        "sweep_name": config.get("sweep_name", "plan_b_complex_fir_sweep_test"),
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "run_dir": str(run_dir),
-        "h1_csv": str(h1_csv),
-        "sweep_run_dir": str(sweep_run_dir),
-        "sweep_output_root": str(sweep_output_root),
-        "case_output_structure": {
-            "metadata": "combo_metadata.json",
-            "data": "data",
-            "graph": "graph",
-            "logs": "logs",
-        },
-        "case_count": len(cases),
-        "config": config,
-        "cases": cases,
-    }
-    output_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
-
-def write_case_metadata_json(
-    output_json: Path,
-    case: dict[str, object],
-    run_dir: Path,
-    h1_csv: Path,
-    case_dir: Path,
-    data_dir: Path,
-    graph_dir: Path,
-) -> None:
-    output_json.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "case_id": case["case_id"],
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "run_dir": str(run_dir),
-        "h1_csv": str(h1_csv),
-        "case_dir": str(case_dir),
-        "data_dir": str(data_dir),
-        "graph_dir": str(graph_dir),
-        "parameters": {
-            "fs_hz": case["fs_hz"],
-            "tap_num": case["tap_num"],
-            "reference_delay_samples": case["reference_delay_samples"],
-            "regularization": case["regularization"],
-            "coeff_total_bits": case["coeff_total_bits"],
-            "coeff_frac_bits": case["coeff_frac_bits"],
-        },
-    }
-    output_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
-
-def write_sweep_summary(summary_csv: Path, rows: list[dict[str, object]]) -> None:
-    summary_csv.parent.mkdir(parents=True, exist_ok=True)
-    with summary_csv.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=sweep_summary_fieldnames())
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({field: row.get(field, "") for field in writer.fieldnames})
-
-
-def row_from_case_result(case_id: str, result: PlanBCaseResult) -> dict[str, object]:
-    design = result.design
-    quantized = result.quantized
-    return {
-        "case_id": case_id,
-        "status": "ok",
-        "error": "",
-        "tap_num": design.tap_num,
-        "reference_delay_samples": f"{design.reference_delay_samples:.12e}",
-        "regularization": f"{design.regularization:.12e}",
-        "coeff_total_bits": quantized.total_bits,
-        "coeff_frac_bits": quantized.frac_bits,
-        "saturation_count": quantized.saturation_count,
-        "estimated_real_multiplier_count": f"{result.float_metrics['estimated_real_multiplier_count']:.0f}",
-        "max_abs_coeff": f"{result.float_metrics['max_abs_coeff']:.12e}",
-        "max_abs_coeff_fixed": f"{result.fixed_metrics['max_abs_coeff_fixed']:.12e}",
-        "total_magnitude_ripple_db": f"{result.float_metrics['total_magnitude_ripple_db']:.12e}",
-        "fixed_total_magnitude_ripple_db": f"{result.fixed_metrics['fixed_total_magnitude_ripple_db']:.12e}",
-        "fixed_vs_float_magnitude_error_rms_db": f"{result.fixed_metrics['fixed_vs_float_magnitude_error_rms_db']:.12e}",
-        "total_group_delay_ripple_pp_ns": f"{result.float_metrics['total_group_delay_ripple_pp_ns']:.12e}",
-        "fixed_total_group_delay_ripple_pp_ns": f"{result.fixed_metrics['fixed_total_group_delay_ripple_pp_ns']:.12e}",
-        "phase_error_rms_rad": f"{result.float_metrics['phase_error_rms_rad']:.12e}",
-        "fixed_phase_error_rms_rad": f"{result.fixed_metrics['fixed_phase_error_rms_rad']:.12e}",
-        "output_dir": str(design.output_dir),
-        "graph_dir": str(design.graph_dir),
-    }
-
-
-def run_sweep_test(config_path: Path) -> Path:
-    config = load_json_config(config_path)
-    input_config = config.get("input", {})
-    output_config = config.get("output", {})
-    design_config = config.get("design_sweep", {})
-    fixed_config = config.get("fixed_point_sweep", {})
-
-    if not isinstance(input_config, dict) or not isinstance(output_config, dict):
-        raise ValueError("Sweep config 'input' and 'output' fields must be JSON objects.")
-    if not isinstance(design_config, dict) or not isinstance(fixed_config, dict):
-        raise ValueError("Sweep config 'design_sweep' and 'fixed_point_sweep' fields must be JSON objects.")
-
-    run_dir = resolve_run_dir(parse_optional_path(input_config.get("run_dir")))
-    h1_csv = parse_optional_path(input_config.get("h1_csv")) or default_h1_csv(run_dir)
-    if not h1_csv.is_absolute():
-        h1_csv = REPO_ROOT / h1_csv
-    h1 = load_h1_response(h1_csv)
-
-    sweep_run_dir = create_sweep_run_dir(output_config, config, run_dir)
-    sweep_run_dir.mkdir(parents=True, exist_ok=True)
-
-    save_case_outputs = bool(output_config.get("save_case_outputs", False))
-    save_case_graphs = bool(output_config.get("save_case_graphs", False))
-    summary_csv = sweep_run_dir / "sweep_summary.csv"
-    parameter_json = sweep_run_dir / "parameter_setting_comb.json"
-
-    default_fs_hz = float(get_common_config_value("fs_hz", 12e9))
-    fs_values = [float(value) for value in config_values(design_config, "fs_hz", default_fs_hz)]
-    tap_values = [int(value) for value in config_values(design_config, "tap_num", 256)]
-    regularization_values = [float(value) for value in config_values(design_config, "regularization", 1e-5)]
-    delay_values = config_values(design_config, "reference_delay_samples", None)
-    quantization_choices = fixed_point_choices(fixed_config)
-    cases = sweep_case_definitions(
-        fs_values=fs_values,
-        tap_values=tap_values,
-        regularization_values=regularization_values,
-        delay_values=delay_values,
-        quantization_choices=quantization_choices,
-    )
-    write_sweep_parameter_combinations_json(
-        output_json=parameter_json,
-        config_path=config_path,
-        config=config,
-        run_dir=run_dir,
-        h1_csv=h1_csv,
-        sweep_run_dir=sweep_run_dir,
-        sweep_output_root=sweep_run_dir,
-        cases=cases,
-    )
-
-    rows: list[dict[str, object]] = []
-    for case in cases:
-        case_id = str(case["case_id"])
-        case_dir = sweep_run_dir / case_id
-        case_output_dir = case_dir / "data"
-        case_graph_dir = case_dir / "graph"
-        case_logs_dir = case_dir / "logs"
-        case_logs_dir.mkdir(parents=True, exist_ok=True)
-        write_case_metadata_json(
-            output_json=case_dir / "combo_metadata.json",
-            case=case,
-            run_dir=run_dir,
-            h1_csv=h1_csv,
-            case_dir=case_dir,
-            data_dir=case_output_dir,
-            graph_dir=case_graph_dir,
-        )
-
-        try:
-            result = run_plan_b_case(
-                run_dir=run_dir,
-                h1=h1,
-                output_dir=case_output_dir,
-                graph_dir=case_graph_dir,
-                fs_hz=float(case["fs_hz"]),
-                tap_num=int(case["tap_num"]),
-                regularization=float(case["regularization"]),
-                reference_delay_samples=float(case["reference_delay_samples"]),
-                coeff_total_bits=int(case["coeff_total_bits"]),
-                coeff_frac_bits=int(case["coeff_frac_bits"]),
-                write_outputs=save_case_outputs,
-                write_graphs=save_case_graphs,
-            )
-            rows.append(row_from_case_result(case_id, result))
-        except Exception as exc:
-            rows.append(
-                {
-                    "case_id": case_id,
-                    "status": "error",
-                    "error": str(exc),
-                    "tap_num": case["tap_num"],
-                    "reference_delay_samples": f"{float(case['reference_delay_samples']):.12e}",
-                    "regularization": f"{float(case['regularization']):.12e}",
-                    "coeff_total_bits": case["coeff_total_bits"],
-                    "coeff_frac_bits": case["coeff_frac_bits"],
-                    "output_dir": str(case_output_dir),
-                    "graph_dir": str(case_graph_dir),
-                }
-            )
-
-    write_sweep_summary(summary_csv, rows)
-    print(f"sweep_config: {config_path}")
-    print(f"sweep_run_dir: {sweep_run_dir}")
-    print(f"parameter_setting_comb_json: {parameter_json}")
-    print(f"case_count: {len(rows)}")
-    print(f"summary_csv: {summary_csv}")
-    print(f"save_case_outputs: {save_case_outputs}")
-    print(f"save_case_graphs: {save_case_graphs}")
-    return summary_csv
-
-
 def parse_args() -> argparse.Namespace:
-    default_fs_hz = float(get_common_config_value("fs_hz", 12e9))
+    default_fs_hz = float(plan_b_value("design", "fs_hz", 12e9))
+    default_tap_num = int(plan_b_value("design", "tap_num", 256))
+    default_regularization = float(plan_b_value("design", "regularization", 1e-6))
+    default_coeff_total_bits = int(plan_b_value("fixed_point", "coeff_total_bits", 18))
+    default_coeff_frac_bits = int(plan_b_value("fixed_point", "coeff_frac_bits", 15))
+    default_reference_delay = plan_b_value("design", "reference_delay_samples", None)
     parser = argparse.ArgumentParser(description="Design Plan B single complex FIR equalizer from an existing H1 run.")
-    parser.add_argument(
-        "--mode",
-        choices=["single", "sweep-test"],
-        default="single",
-        help="Run one Plan B design or a sweep test. Default: single.",
-    )
-    parser.add_argument(
-        "--sweep-test-config",
-        type=Path,
-        default=PLAN_B_ROOT / "sweep_test_config.json",
-        help="Sweep test JSON config path. Used only with --mode sweep-test.",
-    )
     parser.add_argument("--run-dir", type=Path, default=None, help="Run data directory. Defaults to latest ready run.")
     parser.add_argument("--h1-csv", type=Path, default=None, help="H1 together.csv. Defaults to data/<run>/h1_full_combined_random/together.csv.")
     parser.add_argument("--output-dir", type=Path, default=None, help=f"Data output directory. Defaults to data/<run>/{STAGE_NAME}.")
     parser.add_argument("--graph-dir", type=Path, default=None, help=f"Graph output directory. Defaults to graph/<run>/{STAGE_NAME}.")
-    parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
-    parser.add_argument("--tap-num", type=int, default=129, help="Complex FIR tap count. Default: 129.")
-    parser.add_argument("--regularization", type=float, default=1e-6, help="Ridge regularization for complex LS design. Default: 1e-6.")
-    parser.add_argument("--coeff-total-bits", type=int, default=18, help="Signed fixed-point coefficient total bits. Default: 18.")
-    parser.add_argument("--coeff-frac-bits", type=int, default=15, help="Signed fixed-point coefficient fractional bits. Default: 15.")
+    parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default from config_plan_b.json: {default_fs_hz:.6g} Hz.")
+    parser.add_argument("--tap-num", type=int, default=default_tap_num, help=f"Complex FIR tap count. Default from config_plan_b.json: {default_tap_num}.")
+    parser.add_argument("--regularization", type=float, default=default_regularization, help=f"Ridge regularization for complex LS design. Default from config_plan_b.json: {default_regularization:.6g}.")
+    parser.add_argument("--coeff-total-bits", type=int, default=default_coeff_total_bits, help=f"Signed fixed-point coefficient total bits. Default from config_plan_b.json: {default_coeff_total_bits}.")
+    parser.add_argument("--coeff-frac-bits", type=int, default=default_coeff_frac_bits, help=f"Signed fixed-point coefficient fractional bits. Default from config_plan_b.json: {default_coeff_frac_bits}.")
     parser.add_argument(
         "--reference-delay-samples",
         type=float,
-        default=None,
-        help="Reference pure delay in samples. Defaults to (tap_num - 1) / 2.",
+        default=default_reference_delay,
+        help="Reference pure delay in samples. Defaults to config_plan_b.json or (tap_num - 1) / 2.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    if args.mode == "sweep-test":
-        run_sweep_test(args.sweep_test_config)
-        return
-
     run_dir = resolve_run_dir(args.run_dir)
     h1_csv = args.h1_csv or default_h1_csv(run_dir)
     h1 = load_h1_response(h1_csv)

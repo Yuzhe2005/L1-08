@@ -1,0 +1,49 @@
+{
+  "paths": {
+    "repo_root": ".",
+    "l1_08_sim_dir": "L1-08+L1-09_sim_base_plan/L1-08_sim",
+    "l1_09_sim_dir": "L1-08+L1-09_sim_base_plan/L1_09_sim",
+    "l1_08_config": "config_base_plan.json",
+    "l1_09_config": "config_base_plan.json",
+    "input_config": "config_input.json",
+    "output_root": "sweep_result"
+  },
+  "output": {
+    "sweep_folder_name": "base_plan_sweep_bw1g_3seed",
+    "group_by_current_seed": true,
+    "overwrite_existing_combo": true,
+    "cleanup_sim_outputs_after_copy": true
+  },
+  "stages": {
+    "run_behavior_simulation": true,
+    "run_qam_evm_simulation": true,
+    "run_l1_09": true,
+    "run_l1_09_evm_lin": true,
+    "run_l1_09_qam_evm": true,
+    "l1_09_validation_coeff_mode": "both"
+  },
+  "sweep": {
+    "description": "Main sweep A: bw_1g only, 3 seeds, focus on full-chain compensation + L1-09 stability boundary.",
+    "bandwidth_profiles": ["bw_1g"],
+    "seed_cases": [
+      { "name": "seed_a", "h1_seed": 1040330957, "behavior_seed": 1068822328, "qam_seed": 225239571 },
+      { "name": "seed_b", "h1_seed": 297216821,  "behavior_seed": 953625061,  "qam_seed": 453249928 },
+      { "name": "seed_c", "h1_seed": 1571318759, "behavior_seed": 1925817879, "qam_seed": 140927704 }
+    ],
+    "l1_08": {
+      "tap_num": [80, 96],
+      "regularization": [0.0001],
+      "fixed_point": [
+        { "name": "Q3.13", "coeff_total_bits": 16, "coeff_frac_bits": 13 }
+      ]
+    },
+    "l1_09": {
+      "allpass_sections": [6, 8, 10],
+      "fixed_point": [
+        { "name": "Q3.15", "coeff_total_bits": 18, "coeff_frac_bits": 15 },
+        { "name": "Q4.14", "coeff_total_bits": 18, "coeff_frac_bits": 14 },
+        { "name": "Q5.13", "coeff_total_bits": 18, "coeff_frac_bits": 13 }
+      ]
+    }
+  }
+}

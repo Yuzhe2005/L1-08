@@ -1,0 +1,24 @@
+{
+  "active": {
+    "input": {
+      "run_dir": null,
+      "h1_csv": null
+    },
+    "design": {
+      "fs_hz": 12000000000.0,
+      "tap_num": 256,
+      "regularization": 1e-06,
+      "reference_delay_samples": null
+    },
+    "fixed_point": {
+      "coeff_total_bits": 18,
+      "coeff_frac_bits": 15
+    },
+    "stages": {
+      "skip_behavior": false,
+      "skip_evm_lin": false,
+      "skip_qam_evm": false,
+      "save_iq": false
+    }
+  }
+}

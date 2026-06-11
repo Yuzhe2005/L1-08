@@ -1,0 +1,16 @@
+metric,value
+h1_csv,D:\桌面\Rigol\data\plan_b_pipeline_data_20260611_032526\h1_full_combined_random\together.csv
+fs_hz,12000000000.000000
+tap_num,2.560000000000e+02
+regularization,1.000000000000e-06
+reference_delay_samples,1.275000000000e+02
+coefficient_count_complex,2.560000000000e+02
+estimated_real_multiplier_count,1.024000000000e+03
+total_magnitude_ripple_db,7.283333137553e-02
+total_magnitude_rms_error_db,1.191617029319e-02
+total_group_delay_mean_ns,1.062615263779e+01
+total_group_delay_ripple_pp_ns,2.093796489578e+00
+phase_error_rms_rad,3.272884989022e-03
+phase_error_max_abs_rad,1.227885469749e-02
+max_abs_coeff,3.914448090400e+00
+coeff_l2_norm,1.229783929793e+01

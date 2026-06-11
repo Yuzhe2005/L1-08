@@ -1,0 +1,40 @@
+{
+  "sweep_name": "plan_b_complex_fir_sweep_test",
+  "description": "Plan B main sweep A: bw_1g only, 3 seeds (same as Base), sweep complex FIR design + fixed-point. Input from config_input.json.",
+  "paths": {
+    "repo_root": ".",
+    "input_config": "config_input.json",
+    "plan_b_config": "config_plan_b.json",
+    "output_root": "sweep_result"
+  },
+  "sweep": {
+    "bandwidth_profiles": ["bw_1g"],
+    "seed_cases": [
+      { "name": "seed_a", "h1_seed": 1040330957, "behavior_seed": 1068822328, "qam_seed": 225239571 },
+      { "name": "seed_b", "h1_seed": 297216821,  "behavior_seed": 953625061,  "qam_seed": 453249928 },
+      { "name": "seed_c", "h1_seed": 1571318759, "behavior_seed": 1925817879, "qam_seed": 140927704 }
+    ]
+  },
+  "input": {
+    "run_dir": null,
+    "h1_csv": null
+  },
+  "output": {
+    "sweep_result_root": "sweep_result",
+    "sweep_folder_name": "plan_b_sweep_bw1g_3seed",
+    "save_case_outputs": true,
+    "save_case_graphs": true
+  },
+  "design_sweep": {
+    "fs_hz": 12000000000.0,
+    "tap_num": [192, 256, 320],
+    "reference_delay_samples": [null],
+    "regularization": [0.000001, 0.00001]
+  },
+  "fixed_point_sweep": {
+    "choices": [
+      { "coeff_total_bits": 16, "coeff_frac_bits": 13 },
+      { "coeff_total_bits": 18, "coeff_frac_bits": 15 }
+    ]
+  }
+}
