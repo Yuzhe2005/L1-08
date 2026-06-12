@@ -493,7 +493,7 @@ def parse_args() -> argparse.Namespace:
         "--coeff-mode",
         choices=("float", "fixed"),
         default=default_coeff_mode,
-        help=f"All-pass coefficient set to use when --allpass-coefficients-csv is omitted. Default from L1_09_experiment_config.json: {default_coeff_mode}.",
+        help=f"All-pass coefficient set to use when --allpass-coefficients-csv is omitted. Default from config_base_plan.json: {default_coeff_mode}.",
     )
     parser.add_argument(
         "--allpass-coefficients-csv",
@@ -510,7 +510,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=None, help="Data output directory. Defaults to data/<run>/l1_09_fix_qam_evm_iir_<mode>.")
     parser.add_argument("--graph-dir", type=Path, default=None, help="Graph output directory. Defaults to graph/<run>/l1_09_fix_qam_evm_iir_<mode>.")
     parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
-    parser.add_argument("--iir-settle-blocks", type=int, default=default_iir_settle_blocks, help=f"Repeated input blocks used before measuring the final block. Default from L1_09_experiment_config.json: {default_iir_settle_blocks}.")
+    parser.add_argument("--iir-settle-blocks", type=int, default=default_iir_settle_blocks, help=f"Repeated input blocks used before measuring the final block. Default from config_base_plan.json: {default_iir_settle_blocks}.")
     parser.add_argument("--samples", type=int, default=default_samples, help=f"FFT/block sample count. Default: {default_samples}.")
     parser.add_argument("--freq-min-hz", type=float, default=default_freq_min_hz, help=f"Minimum occupied QAM frequency. Default: {default_freq_min_hz:.6g} Hz.")
     parser.add_argument("--freq-max-hz", type=float, default=default_freq_max_hz, help=f"Maximum occupied QAM frequency. Default: {default_freq_max_hz:.6g} Hz.")

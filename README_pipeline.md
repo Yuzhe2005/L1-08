@@ -147,20 +147,15 @@ H1 建模范围留作完整硬件响应边界
 
 ### 3.2 sweep
 
-`L1_08_experiment_config.json` 里的 `sweep` 是候选参数池，主要用于记录可能值得扫描的参数范围。
+单次 Base Plan pipeline 使用 `config_input.json`（输入与 profile）和 `config_base_plan.json`（H2 / 定点设计参数）。
 
-实际当前 sweep test 运行时使用的是：
-
-```text
-sweep_test_config.json
-```
-
-也就是说：
+批量 sweep 使用仓库根目录的：
 
 ```text
-单次 pipeline 看 L1_08_experiment_config.json 的 active
-sweep test 看 sweep_test_config.json
+config_base_plan_sweep.json
 ```
+
+Plan B sweep 使用 `config_plan_b_sweep.json`（输入仍来自 `config_input.json`）。
 
 ---
 
@@ -169,13 +164,13 @@ sweep test 看 sweep_test_config.json
 在 PowerShell 中进入项目根目录：
 
 ```powershell
-cd D:\桌面\Rigol
+cd <项目根目录>
 ```
 
 运行完整 pipeline：
 
 ```powershell
-python L1-08_sim\run_all_pipeline.py
+python L1-08+L1-09_sim_base_plan\L1-08_sim\run_all_pipeline.py
 ```
 
 完整运行顺序是：
@@ -192,13 +187,13 @@ python L1-08_sim\run_all_pipeline.py
 如果只想跑 L1-08 主链路，跳过 QAM/EVM：
 
 ```powershell
-python L1-08_sim\run_all_pipeline.py --skip-qam-evm
+python L1-08+L1-09_sim_base_plan\L1-08_sim\run_all_pipeline.py --skip-qam-evm
 ```
 
 如果调试时只想跑到某一步：
 
 ```powershell
-python L1-08_sim\run_all_pipeline.py --stop-after h2_fir_design
+python L1-08+L1-09_sim_base_plan\L1-08_sim\run_all_pipeline.py --stop-after h2_fir_design
 ```
 
 可选的 `--stop-after` stage 名称包括：
@@ -227,7 +222,7 @@ h1_full_combined_random_YYYYMMDD_HHMMSS
 对应输出位置：
 
 ```text
-L1-08_sim/data/<run_name>/
+data/<run_name>/
 graph/<run_name>/
 ```
 
@@ -238,7 +233,7 @@ data/<run_name>/    保存 CSV 和 JSON
 graph/<run_name>/ 保存 PNG 图像
 ```
 
-当前如果 `L1-08_sim/data/` 和 `graph/` 是空的，这是正常的，因为之前做过清理。重新运行 `run_all_pipeline.py` 后会重新生成。
+当前如果 `data/` 和 `graph/` 是空的，这是正常的，因为之前做过清理。重新运行 `run_all_pipeline.py` 后会重新生成。
 
 ---
 
@@ -271,7 +266,7 @@ H1 phase distortion
 输入：
 
 ```text
-L1_08_experiment_config.json
+config_input.json / config_base_plan.json
   active.h1.seed
   active.h1_random_model
 ```
@@ -279,10 +274,10 @@ L1_08_experiment_config.json
 主要输出：
 
 ```text
-L1-08_sim/data/<run_name>/magnitude_combined.csv
-L1-08_sim/data/<run_name>/phase_combined.csv
-L1-08_sim/data/<run_name>/together.csv
-L1-08_sim/data/<run_name>/run_summary.json
+data/<run_name>/magnitude_combined.csv
+data/<run_name>/phase_combined.csv
+data/<run_name>/together.csv
+data/<run_name>/run_summary.json
 graph/<run_name>/magnitude_combined_magnitude.png
 graph/<run_name>/phase_combined_phase.png
 ```
@@ -308,7 +303,7 @@ graph/<run_name>/phase_combined_phase.png
 脚本：
 
 ```text
-L1-08_sim/H2_target_generator.py
+L1-08+L1-09_sim_base_plan/L1-08_sim/H2_target_generator.py
 ```
 
 作用：
@@ -331,13 +326,13 @@ L1-08_sim/H2_target_generator.py
 默认输入：
 
 ```text
-最新的 L1-08_sim/data/<run_name>/magnitude_combined.csv
+最新的 data/<run_name>/magnitude_combined.csv
 ```
 
 主要输出：
 
 ```text
-L1-08_sim/data/<run_name>/h2_target.csv
+data/<run_name>/h2_target.csv
 graph/<run_name>/h2_target.png
 ```
 
@@ -352,7 +347,7 @@ graph/<run_name>/h2_target.png
 脚本：
 
 ```text
-L1-08_sim/H2_fir_designer.py
+L1-08+L1-09_sim_base_plan/L1-08_sim/H2_fir_designer.py
 ```
 
 作用：
@@ -362,7 +357,7 @@ L1-08_sim/H2_fir_designer.py
 当前常规配置来自：
 
 ```text
-L1_08_experiment_config.json
+config_input.json / config_base_plan.json
   active.h2_fir.tap_num
   active.h2_fir.regularization
   active.common.fs_hz
@@ -371,14 +366,14 @@ L1_08_experiment_config.json
 默认输入：
 
 ```text
-L1-08_sim/data/<run_name>/h2_target.csv
+data/<run_name>/h2_target.csv
 ```
 
 主要输出：
 
 ```text
-L1-08_sim/data/<run_name>/h2_fir_coefficients.csv
-L1-08_sim/data/<run_name>/h2_actual_response.csv
+data/<run_name>/h2_fir_coefficients.csv
+data/<run_name>/h2_actual_response.csv
 graph/<run_name>/h2_fir_design.png
 ```
 
@@ -417,7 +412,7 @@ coeff_symmetry_max_error
 脚本：
 
 ```text
-L1-08_sim/H2_fixed_point_quantizer.py
+L1-08+L1-09_sim_base_plan/L1-08_sim/H2_fixed_point_quantizer.py
 ```
 
 作用：
@@ -427,7 +422,7 @@ L1-08_sim/H2_fixed_point_quantizer.py
 配置来自：
 
 ```text
-L1_08_experiment_config.json
+config_input.json / config_base_plan.json
   active.fixed_point.coeff_total_bits
   active.fixed_point.coeff_frac_bits
 ```
@@ -435,15 +430,15 @@ L1_08_experiment_config.json
 默认输入：
 
 ```text
-L1-08_sim/data/<run_name>/h2_fir_coefficients.csv
-L1-08_sim/data/<run_name>/h2_target.csv
+data/<run_name>/h2_fir_coefficients.csv
+data/<run_name>/h2_target.csv
 ```
 
 主要输出：
 
 ```text
-L1-08_sim/data/<run_name>/h2_fir_coefficients_fixed.csv
-L1-08_sim/data/<run_name>/h2_fixed_point_response.csv
+data/<run_name>/h2_fir_coefficients_fixed.csv
+data/<run_name>/h2_fixed_point_response.csv
 graph/<run_name>/h2_fixed_point_quantization.png
 ```
 
@@ -478,7 +473,7 @@ meets_0p1db_target_fixed
 脚本：
 
 ```text
-L1-08_sim/L1_08_behavior_sim.py
+L1-08+L1-09_sim_base_plan/L1-08_sim/L1_08_behavior_sim.py
 ```
 
 作用：
@@ -505,21 +500,21 @@ peak_amplitude = 0.8
 默认输入：
 
 ```text
-L1-08_sim/data/<run_name>/magnitude_combined.csv
-L1-08_sim/data/<run_name>/phase_combined.csv
-L1-08_sim/data/<run_name>/h2_fir_coefficients.csv
-L1-08_sim/data/<run_name>/h2_fir_coefficients_fixed.csv
+data/<run_name>/magnitude_combined.csv
+data/<run_name>/phase_combined.csv
+data/<run_name>/h2_fir_coefficients.csv
+data/<run_name>/h2_fir_coefficients_fixed.csv
 ```
 
 主要输出：
 
 ```text
-L1-08_sim/data/<run_name>/input_iq.csv
-L1-08_sim/data/<run_name>/after_h1_iq.csv
-L1-08_sim/data/<run_name>/after_fir_iq.csv
-L1-08_sim/data/<run_name>/after_fir_fixed_iq.csv
-L1-08_sim/data/<run_name>/multitone_frequencies.csv
-L1-08_sim/data/<run_name>/tone_amplitude_before_after.csv
+data/<run_name>/input_iq.csv
+data/<run_name>/after_h1_iq.csv
+data/<run_name>/after_fir_iq.csv
+data/<run_name>/after_fir_fixed_iq.csv
+data/<run_name>/multitone_frequencies.csv
+data/<run_name>/tone_amplitude_before_after.csv
 graph/<run_name>/l1_08_behavior_multitone.png
 graph/<run_name>/l1_08_behavior_phase_combined.png
 ```
@@ -558,7 +553,7 @@ meets_0p1db_target_fixed
 脚本：
 
 ```text
-L1-08_sim/L1_08_qam_evm_sim.py
+L1-08+L1-09_sim_base_plan/L1-08_sim/L1_08_qam_evm_sim.py
 ```
 
 作用：
@@ -588,12 +583,12 @@ max_constellation_points = 3000
 主要输出：
 
 ```text
-L1-08_sim/data/<run_name>/qam_input_iq.csv
-L1-08_sim/data/<run_name>/qam_after_h1_iq.csv
-L1-08_sim/data/<run_name>/qam_after_fir_iq.csv
-L1-08_sim/data/<run_name>/qam_after_fir_fixed_iq.csv
-L1-08_sim/data/<run_name>/qam_evm_summary.csv
-L1-08_sim/data/<run_name>/qam_constellation_points.csv
+data/<run_name>/qam_input_iq.csv
+data/<run_name>/qam_after_h1_iq.csv
+data/<run_name>/qam_after_fir_iq.csv
+data/<run_name>/qam_after_fir_fixed_iq.csv
+data/<run_name>/qam_evm_summary.csv
+data/<run_name>/qam_constellation_points.csv
 graph/<run_name>/l1_08_qam_evm.png
 ```
 
@@ -624,7 +619,7 @@ residual magnitude ripple
 每次 pipeline 会维护一个 summary 文件：
 
 ```text
-L1-08_sim/data/<run_name>/run_summary.json
+data/<run_name>/run_summary.json
 ```
 
 它会记录每个 stage 的关键信息和指标。
@@ -687,7 +682,7 @@ stages
 sweep 配置文件：
 
 ```text
-sweep_test_config.json
+config_base_plan_sweep.json
 ```
 
 当前 sweep 参数：
@@ -714,7 +709,7 @@ python sweep_test\run_sweep.py
 如果只想看会跑哪些 combo，不真正运行：
 
 ```powershell
-python sweep_test\run_sweep.py --dry-run
+python L1-08+L1-09_sim_base_plan\sweep_test\run_sweep.py
 ```
 
 当前 sweep 输出按 seed 分组：
@@ -890,27 +885,27 @@ sweep_group_summary.csv
 
 ### 13.1 单次验证某个参数配置
 
-1. 修改 `L1_08_experiment_config.json` 的 `active` 参数。
+1. 修改 `config_input.json / config_base_plan.json` 的 `active` 参数。
 2. 运行：
 
 ```powershell
-python L1-08_sim\run_all_pipeline.py
+python L1-08+L1-09_sim_base_plan\L1-08_sim\run_all_pipeline.py
 ```
 
 3. 查看：
 
 ```text
-L1-08_sim/data/<run_name>/run_summary.json
+data/<run_name>/run_summary.json
 graph/<run_name>/*.png
 ```
 
 ### 13.2 扫描多个参数组合
 
-1. 修改 `sweep_test_config.json`。
+1. 修改 `config_base_plan_sweep.json`。
 2. 运行 dry run 检查 combo：
 
 ```powershell
-python sweep_test\run_sweep.py --dry-run
+python L1-08+L1-09_sim_base_plan\sweep_test\run_sweep.py
 ```
 
 3. 正式运行：
@@ -935,7 +930,7 @@ sweep_result/<seed_folder>/*.png
 
 ### 13.3 更换随机 seed 后重新 sweep
 
-1. 修改 `L1_08_experiment_config.json`：
+1. 修改 `config_input.json / config_base_plan.json`：
 
 ```text
 active.h1.seed
@@ -950,7 +945,7 @@ python sweep_test\run_sweep.py
 python sweep_test\analyze_sweep_results.py
 ```
 
-因为 `sweep_test_config.json` 中：
+因为 `config_base_plan_sweep.json` 中：
 
 ```json
 "group_by_current_seed": true
@@ -967,7 +962,7 @@ python sweep_test\analyze_sweep_results.py
 5. fixed-point 不只看 ripple，也要看 `saturation_count`。
 6. seed 的数字大小不代表随机程度，随机复杂度由 `h1_random_model` 的参数范围决定。
 7. sweep test 会复制每个 combo 的 `data/graph/logs` 到 `sweep_result`，用于长期保存。
-8. 如果 `cleanup_sim_outputs_after_copy` 是 `false`，sweep 运行时也会在 `L1-08_sim/data` 和 `L1-08_sim/results` 留下中间 run folder。
+8. 如果 `cleanup_sim_outputs_after_copy` 是 `false`，sweep 运行时也会在 `data/` 和 `graph/` 留下中间 run folder。
 
 ---
 
@@ -976,19 +971,19 @@ python sweep_test\analyze_sweep_results.py
 单次完整运行：
 
 ```powershell
-python L1-08_sim\run_all_pipeline.py
+python L1-08+L1-09_sim_base_plan\L1-08_sim\run_all_pipeline.py
 ```
 
 单次运行但跳过 QAM/EVM：
 
 ```powershell
-python L1-08_sim\run_all_pipeline.py --skip-qam-evm
+python L1-08+L1-09_sim_base_plan\L1-08_sim\run_all_pipeline.py --skip-qam-evm
 ```
 
 sweep dry run：
 
 ```powershell
-python sweep_test\run_sweep.py --dry-run
+python L1-08+L1-09_sim_base_plan\sweep_test\run_sweep.py
 ```
 
 正式 sweep：

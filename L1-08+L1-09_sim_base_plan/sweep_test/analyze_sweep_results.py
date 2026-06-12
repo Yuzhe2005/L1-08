@@ -1,5 +1,5 @@
-import argparse
 import csv
+import json
 import os
 from collections import defaultdict
 from dataclasses import dataclass
@@ -11,8 +11,7 @@ import numpy as np
 from sweep_config import SweepSettings
 
 
-DEFAULT_CONFIG = Path(__file__).resolve().parents[2] / "config_base_plan_sweep.json"
-DEFAULT_TARGET_RIPPLE_DB = 0.1
+SWEEP_CONFIG = Path(__file__).resolve().parents[2] / "config_base_plan_sweep.json"
 PROJECT_ROOT = Path(__file__).resolve().parent
 os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib"))
 
@@ -56,6 +55,8 @@ class SweepRow:
     l1_09_fixed_saturation_count: int
     l1_09_qam_fixed_evm_percent: float
     l1_09_qam_fixed_magnitude_only_evm_percent: float
+    l1_08_fixed_evm_lin_percent: float
+    full_chain_fixed_evm_lin_percent: float
 
     @property
     def is_saturated(self) -> bool:
@@ -65,41 +66,33 @@ class SweepRow:
     def is_l1_09_unstable(self) -> bool:
         return not self.l1_09_fixed_stable or self.l1_09_max_pole_radius >= 1.0
 
+    @property
+    def has_l1_08_evm_lin(self) -> bool:
+        return not np.isnan(self.l1_08_fixed_evm_lin_percent)
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Analyze an L1-08 sweep_summary.csv file.")
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=DEFAULT_CONFIG,
-        help=f"Sweep config JSON. Default: {DEFAULT_CONFIG}",
-    )
-    parser.add_argument(
-        "--summary-csv",
-        type=Path,
-        default=None,
-        help="Explicit sweep_summary.csv path. Default: current sweep output folder from config.",
-    )
-    parser.add_argument(
-        "--target-ripple-db",
-        type=float,
-        default=DEFAULT_TARGET_RIPPLE_DB,
-        help=f"Pass/fail ripple target for report text. Default: {DEFAULT_TARGET_RIPPLE_DB} dB.",
-    )
-    return parser.parse_args()
+    @property
+    def has_full_chain_evm_lin(self) -> bool:
+        return not np.isnan(self.full_chain_fixed_evm_lin_percent)
+
+    def l1_08_evm_lin_meets(self, target_percent: float) -> bool:
+        return self.has_l1_08_evm_lin and self.l1_08_fixed_evm_lin_percent <= target_percent
+
+    def full_chain_evm_lin_meets(self, target_percent: float) -> bool:
+        return self.has_full_chain_evm_lin and self.full_chain_fixed_evm_lin_percent <= target_percent
 
 
 def main() -> None:
-    args = parse_args()
-    settings = SweepSettings.from_json(args.config)
-    summary_csv = args.summary_csv or settings.sweep_output_dir() / "sweep_summary.csv"
-    summary_csv = summary_csv.resolve()
+    settings = SweepSettings.from_json(SWEEP_CONFIG)
+    target_ripple_db = settings.analysis.target_ripple_db
+    l1_08_evm_lin_target = settings.analysis.l1_08_evm_lin_target_percent
+    full_chain_evm_lin_target = settings.analysis.full_chain_evm_lin_target_percent
+    summary_csv = (settings.sweep_output_dir() / "sweep_summary.csv").resolve()
     if not summary_csv.is_file():
         raise FileNotFoundError(f"sweep_summary.csv not found: {summary_csv}")
 
     output_dir = summary_csv.parent
     rows = load_summary(summary_csv)
-    analysis = analyze_rows(rows)
+    analysis = analyze_rows(rows, l1_08_evm_lin_target, full_chain_evm_lin_target)
 
     best_csv = output_dir / "sweep_best_combos.csv"
     group_csv = output_dir / "sweep_group_summary.csv"
@@ -109,8 +102,19 @@ def main() -> None:
     write_group_summary_csv(rows, group_csv)
     stability_csv = output_dir / "sweep_stability_summary.csv"
     write_stability_summary_csv(rows, stability_csv)
-    plot_paths = write_plots(rows, output_dir, args.target_ripple_db)
-    write_report(rows, analysis, report_md, best_csv, group_csv, stability_csv, plot_paths, args.target_ripple_db)
+    plot_paths = write_plots(rows, output_dir, target_ripple_db)
+    write_report(
+        rows,
+        analysis,
+        report_md,
+        best_csv,
+        group_csv,
+        stability_csv,
+        plot_paths,
+        target_ripple_db,
+        l1_08_evm_lin_target,
+        full_chain_evm_lin_target,
+    )
 
     print(f"summary_csv: {summary_csv}")
     print(f"report_md: {report_md}")
@@ -131,6 +135,8 @@ def load_summary(summary_csv: Path) -> list[SweepRow]:
             "behavior_seed",
             "qam_seed",
             "allpass_sections",
+            "l1_08_fixed_evm_lin_percent",
+            "full_chain_fixed_evm_lin_percent",
         } | {"l1_09_allpass_sections"}
         if not reader.fieldnames or not required.issubset(reader.fieldnames):
             missing = sorted(required - set(reader.fieldnames or []))
@@ -138,6 +144,9 @@ def load_summary(summary_csv: Path) -> list[SweepRow]:
 
         rows = []
         for item in reader:
+            l1_08_evm_lin, full_chain_evm_lin = parse_evm_lin_metrics(
+                item.get("l1_09_evm_lin_fixed_metrics")
+            )
             rows.append(
                 SweepRow(
                     combo_folder=item["combo_folder"],
@@ -171,12 +180,49 @@ def load_summary(summary_csv: Path) -> list[SweepRow]:
                     l1_09_fixed_saturation_count=int(item["l1_09_fixed_saturation_count"]),
                     l1_09_qam_fixed_evm_percent=float(item["l1_09_qam_fixed_evm_percent"]),
                     l1_09_qam_fixed_magnitude_only_evm_percent=float(item["l1_09_qam_fixed_magnitude_only_evm_percent"]),
+                    l1_08_fixed_evm_lin_percent=l1_08_evm_lin,
+                    full_chain_fixed_evm_lin_percent=full_chain_evm_lin,
                 )
             )
 
     if not rows:
         raise ValueError(f"{summary_csv} has no data rows.")
     return rows
+
+
+def parse_evm_lin_metrics(blob: str | None) -> tuple[float, float]:
+    """Extract (L1-08-only, full-chain) fixed EVM_LIN percentages from the summary JSON blob.
+
+    The Base sweep already stores per-combo EVM_LIN under ``l1_09_evm_lin_fixed_metrics`` as a
+    JSON string. We surface the deliverable-relevant stages without re-running the sweep:
+      - ``after_l1_08_fixed_fir`` -> L1-08-only EVM_LIN (deliverable target <= 0.10%)
+      - ``after_l1_08_fixed_fir_plus_l1_09_allpass`` -> combined EVM_LIN (target <= 0.05%)
+    Missing/unparseable data yields NaN so downstream pass checks treat it as not-passing.
+    """
+    nan = float("nan")
+    if not blob or not str(blob).strip():
+        return (nan, nan)
+    try:
+        data = json.loads(blob)
+    except (json.JSONDecodeError, TypeError):
+        return (nan, nan)
+    if not isinstance(data, dict):
+        return (nan, nan)
+
+    def stage_evm_lin(stage_key: str) -> float:
+        stage = data.get(stage_key, {})
+        if not isinstance(stage, dict):
+            return nan
+        value = stage.get("evm_lin_percent")
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return nan
+
+    return (
+        stage_evm_lin("after_l1_08_fixed_fir"),
+        stage_evm_lin("after_l1_08_fixed_fir_plus_l1_09_allpass"),
+    )
 
 
 def parse_bool(value: str) -> bool:
@@ -194,16 +240,34 @@ def parse_optional_int(value: str | None) -> int | None:
     return int(value)
 
 
-def analyze_rows(rows: list[SweepRow]) -> dict[str, SweepRow]:
+def analyze_rows(
+    rows: list[SweepRow],
+    l1_08_evm_lin_target: float,
+    full_chain_evm_lin_target: float,
+) -> dict[str, SweepRow]:
     unsaturated = [row for row in rows if not row.is_saturated]
     stable = [row for row in rows if not row.is_l1_09_unstable]
     stable_unsaturated = [row for row in stable if not row.is_saturated]
     pass_fixed_dense = [row for row in rows if row.fixed_dense_pass_0p1db and not row.is_saturated]
     pass_behavior = [row for row in rows if row.behavior_fixed_pass_0p1db and not row.is_saturated]
+    rows_with_evm_lin = [row for row in rows if row.has_full_chain_evm_lin]
+    evm_lin_candidates = (
+        [row for row in stable_unsaturated if row.has_full_chain_evm_lin]
+        or rows_with_evm_lin
+        or rows
+    )
+    fully_passing = [
+        row
+        for row in stable_unsaturated
+        if row.behavior_fixed_pass_0p1db
+        and row.full_chain_evm_lin_meets(full_chain_evm_lin_target)
+    ]
 
     full_chain_candidates = stable_unsaturated or stable or unsaturated or rows
     candidates_for_balanced = pass_fixed_dense or unsaturated or rows
     return {
+        "best_full_chain_evm_lin": min(evm_lin_candidates, key=full_chain_evm_lin_sort_key),
+        "best_l1_08_evm_lin": min(evm_lin_candidates, key=l1_08_evm_lin_sort_key),
         "best_full_chain_qam": min(full_chain_candidates, key=lambda row: row.l1_09_qam_fixed_evm_percent),
         "best_full_chain_qam_stable": min(stable or rows, key=lambda row: row.l1_09_qam_fixed_evm_percent),
         "best_fixed_dense": min(rows, key=lambda row: row.fixed_dense_ripple_db),
@@ -224,7 +288,19 @@ def analyze_rows(rows: list[SweepRow]) -> dict[str, SweepRow]:
             full_chain_candidates,
             key=lambda row: (row.tap_num, row.allpass_sections, row.l1_09_qam_fixed_evm_percent),
         ),
+        "lowest_resource_evm_lin_pass": min(
+            fully_passing or evm_lin_candidates,
+            key=lambda row: (row.tap_num, row.allpass_sections, full_chain_evm_lin_sort_key(row)),
+        ),
     }
+
+
+def full_chain_evm_lin_sort_key(row: SweepRow) -> float:
+    return row.full_chain_fixed_evm_lin_percent if row.has_full_chain_evm_lin else float("inf")
+
+
+def l1_08_evm_lin_sort_key(row: SweepRow) -> float:
+    return row.l1_08_fixed_evm_lin_percent if row.has_l1_08_evm_lin else float("inf")
 
 
 def write_best_combos_csv(analysis: dict[str, SweepRow], output_csv: Path) -> None:
@@ -243,11 +319,13 @@ def write_best_combos_csv(analysis: dict[str, SweepRow], output_csv: Path) -> No
         "fixed_dense_ripple_db",
         "behavior_fixed_ripple_db",
         "qam_fixed_magnitude_only_evm_percent",
+        "l1_08_fixed_evm_lin_percent",
         "allpass_sections",
         "l1_09_fixed_format",
         "l1_09_max_pole_radius",
         "l1_09_fixed_stable",
         "l1_09_qam_fixed_evm_percent",
+        "full_chain_fixed_evm_lin_percent",
         "max_abs_coeff",
     ]
     with output_csv.open("w", newline="", encoding="utf-8") as csv_file:
@@ -273,11 +351,17 @@ def row_to_best_dict(criterion: str, row: SweepRow) -> dict[str, Any]:
         "fixed_dense_ripple_db": f"{row.fixed_dense_ripple_db:.9f}",
         "behavior_fixed_ripple_db": f"{row.behavior_fixed_ripple_db:.9f}",
         "qam_fixed_magnitude_only_evm_percent": f"{row.qam_fixed_magnitude_only_evm_percent:.9f}",
+        "l1_08_fixed_evm_lin_percent": (
+            f"{row.l1_08_fixed_evm_lin_percent:.9f}" if row.has_l1_08_evm_lin else ""
+        ),
         "allpass_sections": row.allpass_sections,
         "l1_09_fixed_format": row.l1_09_fixed_format,
         "l1_09_max_pole_radius": f"{row.l1_09_max_pole_radius:.9f}",
         "l1_09_fixed_stable": row.l1_09_fixed_stable,
         "l1_09_qam_fixed_evm_percent": f"{row.l1_09_qam_fixed_evm_percent:.9f}",
+        "full_chain_fixed_evm_lin_percent": (
+            f"{row.full_chain_fixed_evm_lin_percent:.9f}" if row.has_full_chain_evm_lin else ""
+        ),
         "max_abs_coeff": f"{row.max_abs_coeff:.9f}",
     }
 
@@ -726,6 +810,8 @@ def write_report(
     stability_csv: Path,
     plot_paths: list[Path],
     target_ripple_db: float,
+    l1_08_evm_lin_target: float,
+    full_chain_evm_lin_target: float,
 ) -> None:
     profiles = sorted({row.profile for row in rows}, key=bandwidth_sort_key)
     seed_cases = sorted({row.seed_case for row in rows}, key=sort_group_key)
@@ -742,7 +828,9 @@ def write_report(
     lines.append("")
     lines.append(
         "This report summarizes one completed Base Plan (L1-08 + L1-09) sweep from `sweep_summary.csv`. "
-        "Primary compensation metric is **full-chain** `l1_09_qam_fixed_evm_percent` (after L1-08 + L1-09)."
+        "Deliverable primary metric is **full-chain fixed `EVM_LIN`** (after L1-08 + L1-09, target "
+        f"<= {full_chain_evm_lin_target:.6f}%); L1-08-only `EVM_LIN` target is <= {l1_08_evm_lin_target:.6f}%. "
+        "`l1_09_qam_fixed_evm_percent` is the full QAM EVM (includes residual phase/delay) kept for reference."
     )
     lines.append("")
     lines.append(f"- Total combos: `{len(rows)}`")
@@ -752,12 +840,34 @@ def write_report(
     lines.append(f"- allpass_sections: `{', '.join(str(item) for item in sections)}`")
     lines.append(f"- L1-09 fixed formats: `{', '.join(l1_09_formats)}`")
     lines.append(f"- Ripple pass target used in this report: `{target_ripple_db:.6f} dB`")
+    lines.append(f"- L1-08 EVM_LIN target: `{l1_08_evm_lin_target:.6f}%`; full-chain EVM_LIN target: `{full_chain_evm_lin_target:.6f}%`")
     lines.append("")
 
     lines.append("## 2. Overall Result")
     lines.append("")
+    rows_with_evm_lin = [row for row in rows if row.has_full_chain_evm_lin]
+    l1_08_evm_lin_pass = sum(
+        row.l1_08_evm_lin_meets(l1_08_evm_lin_target) and not row.is_saturated for row in rows
+    )
+    full_chain_evm_lin_pass = sum(
+        row.full_chain_evm_lin_meets(full_chain_evm_lin_target)
+        and not row.is_saturated
+        and not row.is_l1_09_unstable
+        for row in rows
+    )
+    deliverable_pass = sum(
+        row.behavior_fixed_pass_0p1db
+        and row.full_chain_evm_lin_meets(full_chain_evm_lin_target)
+        and not row.is_saturated
+        and not row.is_l1_09_unstable
+        for row in rows
+    )
     lines.append(f"- Fixed dense ripple pass count: `{sum(row.fixed_dense_pass_0p1db for row in rows)} / {len(rows)}`")
-    lines.append(f"- Fixed multi-tone behavior pass count: `{sum(row.behavior_fixed_pass_0p1db for row in rows)} / {len(rows)}`")
+    lines.append(f"- Fixed multi-tone behavior pass count (<= {target_ripple_db:.3f} dB): `{sum(row.behavior_fixed_pass_0p1db for row in rows)} / {len(rows)}`")
+    lines.append(f"- L1-08 EVM_LIN pass count (<= {l1_08_evm_lin_target:.3f}%, unsaturated): `{l1_08_evm_lin_pass} / {len(rows)}`")
+    lines.append(f"- Full-chain EVM_LIN pass count (<= {full_chain_evm_lin_target:.3f}%, stable+unsaturated): `{full_chain_evm_lin_pass} / {len(rows)}`")
+    lines.append(f"- **Deliverable pass count** (ripple + full-chain EVM_LIN + stable + unsaturated): `{deliverable_pass} / {len(rows)}`")
+    lines.append(f"- Combos with EVM_LIN data available: `{len(rows_with_evm_lin)} / {len(rows)}`")
     lines.append(f"- Saturated combo count: `{len(saturated)} / {len(rows)}`")
     lines.append(f"- L1-09 unstable combo count: `{len(unstable)} / {len(rows)}`")
     lines.append("")
@@ -772,19 +882,23 @@ def write_report(
             )
         lines.append("")
 
-    lines.append("## 3. Best Combos (full-chain primary)")
+    lines.append("## 3. Best Combos (deliverable EVM_LIN primary)")
     lines.append("")
     lines.append(
-        "| Criterion | Profile | Seed | Combo | Full-chain QAM EVM (%) | "
-        "L1-08 mag-only EVM (%) | Dense ripple (dB) | L1-09 stable |"
+        "| Criterion | Profile | Seed | Combo | Full-chain EVM_LIN (%) | L1-08 EVM_LIN (%) | "
+        "Full QAM EVM (%) | Behavior ripple (dB) | L1-09 stable |"
     )
-    lines.append("|---|---|---|---|---:|---:|---:|---:|")
+    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|")
     for criterion, row in analysis.items():
+        full_chain_evm_lin = (
+            f"{row.full_chain_fixed_evm_lin_percent:.6f}" if row.has_full_chain_evm_lin else "n/a"
+        )
+        l1_08_evm_lin = f"{row.l1_08_fixed_evm_lin_percent:.6f}" if row.has_l1_08_evm_lin else "n/a"
         lines.append(
             f"| {criterion} | {row.profile} | {row.seed_case} | `{row.combo_folder}` | "
+            f"{full_chain_evm_lin} | {l1_08_evm_lin} | "
             f"{row.l1_09_qam_fixed_evm_percent:.6f} | "
-            f"{row.qam_fixed_magnitude_only_evm_percent:.6f} | "
-            f"{row.fixed_dense_ripple_db:.6f} | {row.l1_09_fixed_stable} |"
+            f"{row.behavior_fixed_ripple_db:.6f} | {row.l1_09_fixed_stable} |"
         )
     lines.append("")
 
@@ -802,9 +916,9 @@ def write_report(
             )
         lines.append("")
 
-    lines.append("## 5. Seed Robustness (full-chain QAM EVM)")
+    lines.append("## 5. Seed Robustness (full-chain EVM_LIN, deliverable metric)")
     lines.append("")
-    append_seed_robustness_table(lines, rows)
+    append_seed_robustness_table(lines, rows, full_chain_evm_lin_target)
     lines.append("")
 
     lines.append("## 6. Group Summary")
@@ -898,17 +1012,36 @@ def append_stability_table(lines: list[str], rows: list[SweepRow]) -> None:
         )
 
 
-def append_seed_robustness_table(lines: list[str], rows: list[SweepRow]) -> None:
-    lines.append("| Seed case | Best full-chain QAM EVM (%) | Mean | Worst | Stable combos |")
-    lines.append("|---|---:|---:|---:|---:|")
+def append_seed_robustness_table(
+    lines: list[str], rows: list[SweepRow], full_chain_evm_lin_target: float
+) -> None:
+    lines.append(
+        "| Seed case | Best full-chain EVM_LIN (%) | Mean | Worst | "
+        f"EVM_LIN pass (<= {full_chain_evm_lin_target:.3f}%) | Stable combos |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|")
     seed_buckets: dict[str, list[SweepRow]] = defaultdict(list)
     for row in rows:
         seed_buckets[row.seed_case].append(row)
     for seed_case in sorted(seed_buckets, key=sort_group_key):
         bucket = seed_buckets[seed_case]
-        evm_values = [row.l1_09_qam_fixed_evm_percent for row in bucket]
+        evm_lin_rows = [row for row in bucket if row.has_full_chain_evm_lin]
+        if evm_lin_rows:
+            evm_values = [row.full_chain_fixed_evm_lin_percent for row in evm_lin_rows]
+            best = f"{min(evm_values):.6f}"
+            avg = f"{mean(evm_values):.6f}"
+            worst = f"{max(evm_values):.6f}"
+        else:
+            best = avg = worst = "n/a"
+        evm_lin_pass = sum(
+            row.full_chain_evm_lin_meets(full_chain_evm_lin_target)
+            and not row.is_saturated
+            and not row.is_l1_09_unstable
+            for row in bucket
+        )
         lines.append(
-            f"| {seed_case} | {min(evm_values):.6f} | {mean(evm_values):.6f} | {max(evm_values):.6f} | "
+            f"| {seed_case} | {best} | {avg} | {worst} | "
+            f"{evm_lin_pass} / {len(bucket)} | "
             f"{sum(not row.is_l1_09_unstable for row in bucket)} / {len(bucket)} |"
         )
 
@@ -986,16 +1119,26 @@ def append_seed_stability_table(lines: list[str], rows: list[SweepRow], target_r
 def interpretation_lines(rows: list[SweepRow], analysis: dict[str, SweepRow], target_ripple_db: float) -> list[str]:
     lines: list[str] = []
     unstable = [row for row in rows if row.is_l1_09_unstable]
+    best_evm_lin = analysis.get("best_full_chain_evm_lin")
+    if best_evm_lin is not None and best_evm_lin.has_full_chain_evm_lin:
+        lines.append(
+            f"- Best full-chain EVM_LIN (deliverable metric): `{best_evm_lin.combo_folder}` with "
+            f"`{best_evm_lin.full_chain_fixed_evm_lin_percent:.6f}%` "
+            f"(tap={best_evm_lin.tap_num}, sections={best_evm_lin.allpass_sections}, "
+            f"L1-09 format={best_evm_lin.l1_09_fixed_format}, seed={best_evm_lin.seed_case}); "
+            f"L1-08-only EVM_LIN `{best_evm_lin.l1_08_fixed_evm_lin_percent:.6f}%`."
+        )
+    else:
+        lines.append(
+            "- Full-chain EVM_LIN not available in this summary CSV "
+            "(column `l1_09_evm_lin_fixed_metrics` missing or empty); ranking falls back to full QAM EVM."
+        )
+
     best_full = analysis["best_full_chain_qam"]
     lines.append(
-        f"- Best full-chain compensation: `{best_full.combo_folder}` with "
+        f"- Reference full QAM EVM best: `{best_full.combo_folder}` with "
         f"`{best_full.l1_09_qam_fixed_evm_percent:.6f}%` QAM EVM "
-        f"(tap={best_full.tap_num}, sections={best_full.allpass_sections}, "
-        f"L1-09 format={best_full.l1_09_fixed_format}, seed={best_full.seed_case})."
-    )
-    lines.append(
-        f"- L1-08-only reference for same combo: `{best_full.qam_fixed_magnitude_only_evm_percent:.6f}%` "
-        f"magnitude-only EVM (does not include L1-09 phase correction)."
+        f"(includes residual phase/delay; not the deliverable gate)."
     )
 
     if unstable:
@@ -1006,10 +1149,16 @@ def interpretation_lines(rows: list[SweepRow], analysis: dict[str, SweepRow], ta
     else:
         lines.append("- All combos remained L1-09 stable in this sweep.")
 
-    balanced = analysis.get("lowest_tap_full_chain", best_full)
+    balanced = analysis.get("lowest_resource_evm_lin_pass") or analysis.get("lowest_tap_full_chain", best_full)
+    balanced_evm_lin = (
+        f"{balanced.full_chain_fixed_evm_lin_percent:.6f}%"
+        if balanced.has_full_chain_evm_lin
+        else "n/a"
+    )
     lines.append(
-        f"- Lowest-complexity full-chain candidate: `{balanced.combo_folder}` with "
-        f"`{balanced.l1_09_qam_fixed_evm_percent:.6f}%` full-chain QAM EVM."
+        f"- Lowest-resource EVM_LIN-passing candidate: `{balanced.combo_folder}` "
+        f"(tap={balanced.tap_num}, sections={balanced.allpass_sections}) with "
+        f"full-chain EVM_LIN `{balanced_evm_lin}`."
     )
 
     saturated = [row for row in rows if row.is_saturated]
@@ -1017,8 +1166,9 @@ def interpretation_lines(rows: list[SweepRow], analysis: dict[str, SweepRow], ta
         lines.append(f"- `{len(saturated)}` combos show coefficient saturation (L1-08 and/or L1-09).")
 
     lines.append(
-        "- Dense ripple remains a useful L1-08 diagnostic, but ranking for architecture comparison should use "
-        f"full-chain `l1_09_qam_fixed_evm_percent`."
+        "- For cross-plan (Base vs Plan B) RTL comparison, use the shared, deliverable-aligned axes: "
+        "full-chain fixed EVM_LIN, behavior multi-tone ripple, and saturation=0. "
+        "Full QAM EVM and dense ripple remain diagnostics only."
     )
     return lines
 

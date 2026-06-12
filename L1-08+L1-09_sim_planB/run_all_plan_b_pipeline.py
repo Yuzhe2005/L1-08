@@ -55,7 +55,7 @@ def validate_h1_run_ready(run_dir: Path) -> None:
 
 def current_plan_b_runs() -> set[Path]:
     runs: set[Path] = set()
-    for pattern in (f"{PLAN_B_RUN_NAME_PREFIX}*", "plan_b_full_combined_*", "full_combined_*"):
+    for pattern in (f"{PLAN_B_RUN_NAME_PREFIX}*",):
         for path in DATA_ROOT.glob(pattern):
             if path.is_dir() and (h1_data_dir(path) / "together.csv").is_file():
                 runs.add(path.resolve())

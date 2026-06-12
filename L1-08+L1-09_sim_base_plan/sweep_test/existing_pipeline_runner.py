@@ -199,9 +199,7 @@ class ExistingPipelineComboRunner:
 
     def _latest_run_dir(self) -> Path:
         candidates = sorted(
-            list((self.settings.repo_root / "data").glob("base_plan_pipeline_data_*"))
-            + list((self.settings.repo_root / "data").glob("full_combined_*"))
-            + list((self.settings.repo_root / "data").glob("h1_full_combined_random_*")),
+            (self.settings.repo_root / "data").glob("base_plan_pipeline_data_*"),
             key=lambda path: path.stat().st_mtime,
             reverse=True,
         )
@@ -312,7 +310,7 @@ def write_sweep_summary_csv(results: list[ComboResult], output_csv: Path) -> Non
         "l1_09_coeff_total_bits",
         "l1_09_coeff_frac_bits",
         "l1_09_fixed_format",
-        # Legacy L1-08 columns for existing analyzer compatibility.
+        # Short L1-08 column names consumed by analyze_sweep_results.py.
         "tap_num",
         "regularization",
         "coeff_total_bits",
@@ -352,10 +350,15 @@ def write_sweep_summary_csv(results: list[ComboResult], output_csv: Path) -> Non
                 **combo_data,
                 **result.metrics,
             }
-            row["fixed_format"] = combo_data["format"]
             row["profile"] = result.combo.profile_label
             row["seed_case"] = combo_data["seed_case"]
             row["h1_seed"] = combo_data["h1_seed"]
             row["behavior_seed"] = combo_data["behavior_seed"]
             row["qam_seed"] = combo_data["qam_seed"]
+            # Short L1-08 columns consumed by analyze_sweep_results.py
+            row["tap_num"] = combo_data["l1_08_tap_num"]
+            row["regularization"] = combo_data["l1_08_regularization"]
+            row["coeff_total_bits"] = combo_data["l1_08_coeff_total_bits"]
+            row["coeff_frac_bits"] = combo_data["l1_08_coeff_frac_bits"]
+            row["fixed_format"] = combo_data["l1_08_fixed_format"]
             writer.writerow(row)

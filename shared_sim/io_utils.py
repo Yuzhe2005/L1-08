@@ -26,9 +26,6 @@ BASE_READY_REQUIRED_FILES = H1_REQUIRED_FILES + [
 RUN_DIR_GLOBS = (
     f"{BASE_RUN_NAME_PREFIX}*",
     f"{PLAN_B_RUN_NAME_PREFIX}*",
-    "full_combined_*",
-    "plan_b_full_combined_*",
-    "h1_full_combined_random_*",
 )
 
 

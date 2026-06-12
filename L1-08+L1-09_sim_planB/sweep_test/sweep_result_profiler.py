@@ -1,4 +1,3 @@
-import argparse
 import csv
 import json
 import os
@@ -19,11 +18,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import plan_b_sweep_bootstrap  # noqa: F401
-from shared_sim.paths import REPO_ROOT
+from plan_b_sweep_config import analysis_settings, summary_csv_path, sweep_output_dir
 
 PLAN_B_ROOT = Path(__file__).resolve().parent.parent
-SWEEP_RESULT_ROOT = REPO_ROOT / "sweep_result"
-DEFAULT_SWEEP_CONFIG = REPO_ROOT / "config_plan_b_sweep.json"
 
 LOWER_IS_BETTER = [
     "fixed_total_magnitude_ripple_db",
@@ -56,64 +53,6 @@ PROFILE_COLUMNS = [
 ]
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Profile and summarize Plan B sweep-test results.")
-    parser.add_argument("--summary-csv", type=Path, default=None, help="Sweep summary CSV. Defaults to the latest Plan B sweep_result folder.")
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=None,
-        help="Profile output directory. Defaults to the sweep run folder.",
-    )
-    parser.add_argument(
-        "--graph-dir",
-        type=Path,
-        default=None,
-        help="Profile graph output directory. Defaults to the sweep run folder.",
-    )
-    parser.add_argument(
-        "--top-n",
-        type=int,
-        default=10,
-        help="Number of top-ranked cases to include in the markdown profile. Default: 10.",
-    )
-    return parser.parse_args()
-
-
-def load_json(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as json_file:
-        data = json.load(json_file)
-    if not isinstance(data, dict):
-        raise ValueError(f"{path} must contain a JSON object.")
-    return data
-
-
-def resolve_path(path_text: str | None) -> Path | None:
-    if path_text is None:
-        return None
-    path = Path(path_text)
-    return path if path.is_absolute() else REPO_ROOT / path
-
-
-def default_summary_csv() -> Path:
-    config = load_json(DEFAULT_SWEEP_CONFIG)
-    output_config = config.get("output", {})
-    if not isinstance(output_config, dict):
-        raise ValueError("config_plan_b_sweep.json must contain an output object.")
-
-    sweep_root = resolve_path(output_config.get("sweep_result_root")) or SWEEP_RESULT_ROOT
-    candidates = [
-        path
-        for path in sweep_root.glob("h1_*_behavior_*_qam_*")
-        if path.is_dir() and (path / "sweep_summary.csv").is_file() and (path / "parameter_setting_comb.json").is_file()
-    ]
-    if not candidates:
-        raise FileNotFoundError(f"No Plan B sweep summaries found under {sweep_root}.")
-
-    latest = max(candidates, key=lambda path: path.stat().st_mtime)
-    return latest / "sweep_summary.csv"
-
-
 def default_profile_graph_dir(summary_csv: Path, output_dir: Path) -> Path:
     return output_dir
 
@@ -123,6 +62,13 @@ def parse_float(row: dict[str, str], key: str) -> float:
     if value == "":
         raise ValueError(f"Missing numeric field '{key}' in case {row.get('case_id', '<unknown>')}.")
     return float(value)
+
+
+def parse_optional_float(row: dict[str, str], key: str, fallback_key: str) -> float:
+    value = row.get(key, "")
+    if str(value).strip():
+        return float(value)
+    return parse_float(row, fallback_key)
 
 
 def parse_int(row: dict[str, str], key: str) -> int:
@@ -153,17 +99,40 @@ def rank_normalized_values(values: list[float]) -> list[float]:
 
 
 def score_rows(rows: list[dict[str, str]]) -> list[dict[str, object]]:
-    weights = {
-        "fixed_total_magnitude_ripple_db": 0.35,
-        "fixed_phase_error_rms_rad": 0.25,
-        "fixed_total_group_delay_ripple_pp_ns": 0.20,
-        "fixed_vs_float_magnitude_error_rms_db": 0.10,
-        "estimated_real_multiplier_count": 0.07,
-        "saturation_count": 0.03,
-    }
+    has_behavior = any(str(row.get("behavior_fixed_ripple_db", "")).strip() for row in rows)
+    if has_behavior:
+        weights = {
+            "behavior_fixed_ripple_db": 0.15,
+            "fixed_total_magnitude_ripple_db": 0.20,
+            "fixed_phase_error_rms_rad": 0.25,
+            "fixed_total_group_delay_ripple_pp_ns": 0.20,
+            "fixed_vs_float_magnitude_error_rms_db": 0.10,
+            "estimated_real_multiplier_count": 0.07,
+            "saturation_count": 0.03,
+        }
+        metric_values = {
+            "behavior_fixed_ripple_db": [
+                parse_optional_float(row, "behavior_fixed_ripple_db", "fixed_total_magnitude_ripple_db")
+                for row in rows
+            ],
+            **{
+                key: [parse_float(row, key) for row in rows]
+                for key in weights
+                if key != "behavior_fixed_ripple_db"
+            },
+        }
+    else:
+        weights = {
+            "fixed_total_magnitude_ripple_db": 0.35,
+            "fixed_phase_error_rms_rad": 0.25,
+            "fixed_total_group_delay_ripple_pp_ns": 0.20,
+            "fixed_vs_float_magnitude_error_rms_db": 0.10,
+            "estimated_real_multiplier_count": 0.07,
+            "saturation_count": 0.03,
+        }
+        metric_values = {key: [parse_float(row, key) for row in rows] for key in weights}
     normalized_columns = {
-        key: rank_normalized_values([parse_float(row, key) for row in rows])
-        for key in weights
+        key: rank_normalized_values(values) for key, values in metric_values.items()
     }
 
     scored_rows: list[dict[str, object]] = []
@@ -483,11 +452,16 @@ def profile_sweep_results(summary_csv: Path, output_dir: Path, graph_dir: Path, 
 
 
 def main() -> None:
-    args = parse_args()
-    summary_csv = args.summary_csv or default_summary_csv()
-    output_dir = args.output_dir or summary_csv.parent
-    graph_dir = args.graph_dir or default_profile_graph_dir(summary_csv, output_dir)
-    paths = profile_sweep_results(summary_csv=summary_csv, output_dir=output_dir, graph_dir=graph_dir, top_n=args.top_n)
+    analysis_cfg = analysis_settings()
+    summary_csv = summary_csv_path()
+    output_dir = sweep_output_dir()
+    graph_dir = default_profile_graph_dir(summary_csv, output_dir)
+    paths = profile_sweep_results(
+        summary_csv=summary_csv,
+        output_dir=output_dir,
+        graph_dir=graph_dir,
+        top_n=analysis_cfg.profiler_top_n,
+    )
 
     print(f"summary_csv: {summary_csv}")
     print(f"profile_output_dir: {output_dir}")

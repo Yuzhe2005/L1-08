@@ -9,11 +9,6 @@ INPUT_CONFIG_JSON = REPO_ROOT / "config_input.json"
 BASE_PLAN_CONFIG_JSON = REPO_ROOT / "config_base_plan.json"
 PLAN_B_CONFIG_JSON = REPO_ROOT / "config_plan_b.json"
 
-# Legacy aliases kept for sweep transition references.
-EXPERIMENT_CONFIG_JSON = INPUT_CONFIG_JSON
-DEFAULT_CONFIG_JSON = INPUT_CONFIG_JSON
-DEFAULT_INPUT_CONFIG_JSON = INPUT_CONFIG_JSON
-
 PROFILE_ENV_VAR = "L1_08_PROFILE"
 SEED_CASE_ENV_VAR = "L1_08_SEED_CASE"
 H1_SEED_ENV_VAR = "L1_08_H1_SEED"
@@ -42,11 +37,6 @@ def load_plan_b_config(config_json: Path = PLAN_B_CONFIG_JSON) -> dict[str, Any]
     return _load_json(config_json)
 
 
-def load_experiment_config(config_json: Path = INPUT_CONFIG_JSON) -> dict[str, Any]:
-    """Backward-compatible snapshot: input config file contents."""
-    return load_input_config(config_json)
-
-
 def selected_profile(default: str | None = None) -> str | None:
     profile_name = os.environ.get(PROFILE_ENV_VAR, "").strip()
     if profile_name:
@@ -57,10 +47,6 @@ def selected_profile(default: str | None = None) -> str | None:
         return default
     selected_text = str(selected).strip()
     return selected_text or default
-
-
-def get_selected_profile_name(default: str | None = None) -> str | None:
-    return selected_profile(default=default)
 
 
 def get_selected_seed_case_name(default: str | None = None) -> str | None:
@@ -74,10 +60,6 @@ def get_available_profiles(config_json: Path = INPUT_CONFIG_JSON) -> list[str]:
     if not isinstance(profiles, dict):
         return []
     return sorted(str(name) for name in profiles)
-
-
-def get_available_input_profiles(config_json: Path = INPUT_CONFIG_JSON) -> list[str]:
-    return get_available_profiles(config_json)
 
 
 def input_active(profile_name: str | None = None, config_json: Path = INPUT_CONFIG_JSON) -> dict[str, Any]:
@@ -150,15 +132,6 @@ def plan_b_value(section: str, key: str, default: Any, config_json: Path = PLAN_
     if not isinstance(section_data, dict):
         return default
     return section_data.get(key, default)
-
-
-# Backward-compatible aliases used across the codebase.
-def get_active_config(profile_name: str | None = None, config_json: Path = INPUT_CONFIG_JSON) -> dict[str, Any]:
-    return input_active(profile_name=profile_name, config_json=config_json)
-
-
-def get_active_input_config(profile_name: str | None = None, config_json: Path = INPUT_CONFIG_JSON) -> dict[str, Any]:
-    return input_active(profile_name=profile_name, config_json=config_json)
 
 
 def get_common_config_value(key: str, default: Any, profile_name: str | None = None) -> Any:

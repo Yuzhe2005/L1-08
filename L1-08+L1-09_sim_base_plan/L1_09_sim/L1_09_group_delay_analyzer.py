@@ -262,7 +262,7 @@ def parse_args() -> argparse.Namespace:
         "--h1-csv",
         type=Path,
         default=None,
-        help="Input H1 CSV with freq_hz and phase_rad. Defaults to latest data/full_combined_*/h1_full_combined_random/together.csv.",
+        help="Input H1 CSV with freq_hz and phase_rad. Defaults to latest data/base_plan_pipeline_data_*/h1_full_combined_random/together.csv.",
     )
     parser.add_argument(
         "--input-csv",

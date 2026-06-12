@@ -1,5 +1,5 @@
-import argparse
 import csv
+import math
 import os
 from collections import defaultdict
 from dataclasses import dataclass
@@ -9,10 +9,9 @@ from typing import Any, Callable
 import numpy as np
 
 import plan_b_sweep_bootstrap  # noqa: F401
-from shared_sim.paths import REPO_ROOT
+from plan_b_sweep_config import analysis_settings, summary_csv_path
 
 PLAN_B_ROOT = Path(__file__).resolve().parent.parent
-SWEEP_RESULT_ROOT = REPO_ROOT / "sweep_result"
 MPLCONFIG_ROOT = Path(__file__).resolve().parent / ".matplotlib"
 os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIG_ROOT))
 
@@ -60,6 +59,9 @@ class PlanBSweepRow:
     after_plan_b_evm_lin_phase_only_percent: float
     after_plan_b_fixed_evm_lin_phase_only_percent: float
     after_plan_b_fixed_evm_lin_fitted_delay_samples: float
+    behavior_fixed_ripple_db: float
+    behavior_float_ripple_db: float
+    behavior_fixed_pass_0p1db: bool
     data_dir: str
     graph_dir: str
 
@@ -75,23 +77,19 @@ class PlanBSweepRow:
     def fixed_format(self) -> str:
         return f"Q{self.coeff_total_bits}.{self.coeff_frac_bits}"
 
+    @property
+    def has_behavior_ripple(self) -> bool:
+        return not math.isnan(self.behavior_fixed_ripple_db)
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Analyze a Plan B sweep summary with QAM, EVM_LIN, frequency, and resource metrics.")
-    parser.add_argument(
-        "--summary-csv",
-        type=Path,
-        default=None,
-        help="Plan B sweep_summary.csv. Defaults to latest sweep_result/plan_b_sweep_*/sweep_summary.csv.",
-    )
-    parser.add_argument("--qam-target-percent", type=float, default=0.5, help="QAM EVM target used for low-resource recommendation. Default: 0.5%%.")
-    parser.add_argument("--evm-lin-target-percent", type=float, default=0.5, help="EVM_LIN target used for low-resource recommendation. Default: 0.5%%.")
-    return parser.parse_args()
+    def passes_behavior_ripple(self, target_ripple_db: float) -> bool:
+        if not self.has_behavior_ripple:
+            return True
+        return self.behavior_fixed_ripple_db <= target_ripple_db
 
 
 def main() -> None:
-    args = parse_args()
-    summary_csv = (args.summary_csv or find_latest_summary_csv()).resolve()
+    analysis_cfg = analysis_settings()
+    summary_csv = summary_csv_path().resolve()
     if not summary_csv.is_file():
         raise FileNotFoundError(f"sweep_summary.csv not found: {summary_csv}")
 
@@ -106,7 +104,12 @@ def main() -> None:
         print(f"No successful cases to analyze ({len(rows)} failed). See report for error details.")
         return
 
-    analysis = analyze_rows(ok_rows, args.qam_target_percent, args.evm_lin_target_percent)
+    analysis = analyze_rows(
+        ok_rows,
+        analysis_cfg.qam_target_percent,
+        analysis_cfg.evm_lin_target_percent,
+        analysis_cfg.target_ripple_db,
+    )
     best_csv = output_dir / "sweep_best_combos.csv"
     group_csv = output_dir / "sweep_group_summary.csv"
     report_md = output_dir / "sweep_analysis_report.md"
@@ -125,8 +128,9 @@ def main() -> None:
         group_csv=group_csv,
         seed_robustness_csv=seed_robustness_csv,
         plot_paths=plot_paths,
-        qam_target_percent=args.qam_target_percent,
-        evm_lin_target_percent=args.evm_lin_target_percent,
+        qam_target_percent=analysis_cfg.qam_target_percent,
+        evm_lin_target_percent=analysis_cfg.evm_lin_target_percent,
+        target_ripple_db=analysis_cfg.target_ripple_db,
     )
 
     print(f"summary_csv: {summary_csv}")
@@ -138,22 +142,19 @@ def main() -> None:
         print(f"  {path}")
 
 
-def find_latest_summary_csv() -> Path:
-    candidates = sorted(
-        list(SWEEP_RESULT_ROOT.glob("plan_b_sweep_*/sweep_summary.csv"))
-        + list(SWEEP_RESULT_ROOT.glob("plan_b_qam_sweep_*/sweep_summary.csv")),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    )
-    if not candidates:
-        raise FileNotFoundError(f"No Plan B sweep_summary.csv found under {SWEEP_RESULT_ROOT}")
-    return candidates[0]
-
-
 def load_summary(summary_csv: Path) -> list[PlanBSweepRow]:
     with summary_csv.open("r", newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
-        optional = {"profile", "seed_case", "h1_seed", "behavior_seed", "qam_seed"}
+        optional = {
+            "profile",
+            "seed_case",
+            "h1_seed",
+            "behavior_seed",
+            "qam_seed",
+            "behavior_fixed_ripple_db",
+            "behavior_float_ripple_db",
+            "behavior_fixed_pass_0p1db",
+        }
         required = set(PlanBSweepRow.__dataclass_fields__) - optional
         if not reader.fieldnames or not required.issubset(reader.fieldnames):
             missing = sorted(required - set(reader.fieldnames or []))
@@ -181,6 +182,12 @@ def parse_metric_float(value: str | None, default: float = float("nan")) -> floa
     if value is None or str(value).strip() == "":
         return default
     return float(value)
+
+
+def parse_bool(value: str | None, default: bool = False) -> bool:
+    if value is None or str(value).strip() == "":
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes"}
 
 
 def row_from_dict(item: dict[str, str]) -> PlanBSweepRow:
@@ -220,12 +227,20 @@ def row_from_dict(item: dict[str, str]) -> PlanBSweepRow:
         after_plan_b_evm_lin_phase_only_percent=parse_metric_float(item.get("after_plan_b_evm_lin_phase_only_percent")),
         after_plan_b_fixed_evm_lin_phase_only_percent=parse_metric_float(item.get("after_plan_b_fixed_evm_lin_phase_only_percent")),
         after_plan_b_fixed_evm_lin_fitted_delay_samples=parse_metric_float(item.get("after_plan_b_fixed_evm_lin_fitted_delay_samples")),
+        behavior_fixed_ripple_db=parse_metric_float(item.get("behavior_fixed_ripple_db")),
+        behavior_float_ripple_db=parse_metric_float(item.get("behavior_float_ripple_db")),
+        behavior_fixed_pass_0p1db=parse_bool(item.get("behavior_fixed_pass_0p1db")),
         data_dir=item["data_dir"],
         graph_dir=item["graph_dir"],
     )
 
 
-def analyze_rows(rows: list[PlanBSweepRow], qam_target_percent: float, evm_lin_target_percent: float) -> dict[str, PlanBSweepRow]:
+def analyze_rows(
+    rows: list[PlanBSweepRow],
+    qam_target_percent: float,
+    evm_lin_target_percent: float,
+    target_ripple_db: float,
+) -> dict[str, PlanBSweepRow]:
     unsaturated = [row for row in rows if not row.is_saturated]
     candidates = unsaturated or rows
     passing = [
@@ -233,6 +248,7 @@ def analyze_rows(rows: list[PlanBSweepRow], qam_target_percent: float, evm_lin_t
         for row in candidates
         if row.after_plan_b_fixed_evm_percent <= qam_target_percent
         and row.after_plan_b_fixed_evm_lin_percent <= evm_lin_target_percent
+        and row.passes_behavior_ripple(target_ripple_db)
     ]
     resource_candidates = passing or candidates
 
@@ -243,6 +259,10 @@ def analyze_rows(rows: list[PlanBSweepRow], qam_target_percent: float, evm_lin_t
         "best_fixed_evm_lin_magnitude_only": min(candidates, key=lambda row: row.after_plan_b_fixed_evm_lin_magnitude_only_percent),
         "best_fixed_evm_lin_phase_only": min(candidates, key=lambda row: row.after_plan_b_fixed_evm_lin_phase_only_percent),
         "best_magnitude_ripple": min(candidates, key=lambda row: row.fixed_total_magnitude_ripple_db),
+        "best_behavior_fixed_ripple": min(
+            [row for row in candidates if row.has_behavior_ripple] or candidates,
+            key=lambda row: row.behavior_fixed_ripple_db if row.has_behavior_ripple else row.fixed_total_magnitude_ripple_db,
+        ),
         "best_group_delay_ripple": min(candidates, key=lambda row: row.fixed_total_group_delay_ripple_pp_ns),
         "best_phase_error": min(candidates, key=lambda row: row.fixed_phase_error_rms_rad),
         "lowest_resource": min(candidates, key=lambda row: (row.estimated_real_multiplier_count, row.after_plan_b_fixed_evm_percent)),
@@ -252,7 +272,7 @@ def analyze_rows(rows: list[PlanBSweepRow], qam_target_percent: float, evm_lin_t
             key=lambda row: (
                 row.after_plan_b_fixed_evm_percent,
                 row.after_plan_b_fixed_evm_lin_percent,
-                row.fixed_total_magnitude_ripple_db,
+                row.behavior_fixed_ripple_db if row.has_behavior_ripple else row.fixed_total_magnitude_ripple_db,
                 row.estimated_real_multiplier_count,
             ),
         ),
@@ -277,6 +297,7 @@ def write_best_combos_csv(analysis: dict[str, PlanBSweepRow], output_csv: Path) 
         "after_plan_b_fixed_evm_lin_magnitude_only_percent",
         "after_plan_b_fixed_evm_lin_phase_only_percent",
         "fixed_total_magnitude_ripple_db",
+        "behavior_fixed_ripple_db",
         "fixed_total_group_delay_ripple_pp_ns",
         "fixed_phase_error_rms_rad",
         "data_dir",
@@ -308,6 +329,9 @@ def row_to_best_dict(criterion: str, row: PlanBSweepRow) -> dict[str, Any]:
         "after_plan_b_fixed_evm_lin_magnitude_only_percent": f"{row.after_plan_b_fixed_evm_lin_magnitude_only_percent:.9f}",
         "after_plan_b_fixed_evm_lin_phase_only_percent": f"{row.after_plan_b_fixed_evm_lin_phase_only_percent:.9f}",
         "fixed_total_magnitude_ripple_db": f"{row.fixed_total_magnitude_ripple_db:.9f}",
+        "behavior_fixed_ripple_db": (
+            f"{row.behavior_fixed_ripple_db:.9f}" if row.has_behavior_ripple else ""
+        ),
         "fixed_total_group_delay_ripple_pp_ns": f"{row.fixed_total_group_delay_ripple_pp_ns:.9f}",
         "fixed_phase_error_rms_rad": f"{row.fixed_phase_error_rms_rad:.9e}",
         "data_dir": row.data_dir,
@@ -401,7 +425,9 @@ def write_seed_robustness_csv(rows: list[PlanBSweepRow], output_csv: Path) -> No
         "fixed_format",
         "seed_case",
         "after_plan_b_fixed_evm_percent",
+        "after_plan_b_fixed_evm_lin_percent",
         "fixed_total_magnitude_ripple_db",
+        "behavior_fixed_ripple_db",
         "saturation_count",
     ]
     buckets: dict[tuple[int, float, str], list[PlanBSweepRow]] = defaultdict(list)
@@ -426,10 +452,17 @@ def write_seed_robustness_csv(rows: list[PlanBSweepRow], output_csv: Path) -> No
                         "fixed_format": fixed_format,
                         "seed_case": row.seed_case,
                         "after_plan_b_fixed_evm_percent": f"{row.after_plan_b_fixed_evm_percent:.9f}",
+                        "after_plan_b_fixed_evm_lin_percent": f"{row.after_plan_b_fixed_evm_lin_percent:.9f}",
                         "fixed_total_magnitude_ripple_db": f"{row.fixed_total_magnitude_ripple_db:.9f}",
+                        "behavior_fixed_ripple_db": (
+                            f"{row.behavior_fixed_ripple_db:.9f}" if row.has_behavior_ripple else ""
+                        ),
                         "saturation_count": row.saturation_count,
                     }
                 )
+            evm_lin_values = [row.after_plan_b_fixed_evm_lin_percent for row in bucket]
+            behavior_rows = [row for row in bucket if row.has_behavior_ripple]
+            behavior_ripple_values = [row.behavior_fixed_ripple_db for row in behavior_rows]
             writer.writerow(
                 {
                     "tap_num": tap_num,
@@ -439,8 +472,16 @@ def write_seed_robustness_csv(rows: list[PlanBSweepRow], output_csv: Path) -> No
                     "after_plan_b_fixed_evm_percent": (
                         f"{min(evm_values):.9f}/{mean(evm_values):.9f}/{max(evm_values):.9f}"
                     ),
+                    "after_plan_b_fixed_evm_lin_percent": (
+                        f"{min(evm_lin_values):.9f}/{mean(evm_lin_values):.9f}/{max(evm_lin_values):.9f}"
+                    ),
                     "fixed_total_magnitude_ripple_db": (
                         f"{min(ripple_values):.9f}/{mean(ripple_values):.9f}/{max(ripple_values):.9f}"
+                    ),
+                    "behavior_fixed_ripple_db": (
+                        f"{min(behavior_ripple_values):.9f}/{mean(behavior_ripple_values):.9f}/{max(behavior_ripple_values):.9f}"
+                        if behavior_ripple_values
+                        else ""
                     ),
                     "saturation_count": sum(row.is_saturated for row in bucket),
                 }
@@ -609,6 +650,7 @@ def write_report(
     plot_paths: list[Path],
     qam_target_percent: float,
     evm_lin_target_percent: float,
+    target_ripple_db: float,
 ) -> None:
     saturated_count = sum(row.is_saturated for row in ok_rows)
     profiles = sorted({row.profile for row in ok_rows})
@@ -616,7 +658,16 @@ def write_report(
     best_qam = analysis["best_fixed_qam_evm"]
     best_evm_lin = analysis["best_fixed_evm_lin"]
     best_mag = analysis["best_magnitude_ripple"]
+    best_behavior = analysis["best_behavior_fixed_ripple"]
     best_resource = analysis["lowest_resource_passing"]
+    passing_count = sum(
+        1
+        for row in ok_rows
+        if not row.is_saturated
+        and row.after_plan_b_fixed_evm_percent <= qam_target_percent
+        and row.after_plan_b_fixed_evm_lin_percent <= evm_lin_target_percent
+        and row.passes_behavior_ripple(target_ripple_db)
+    )
 
     lines = [
         "# Plan B Sweep Analysis",
@@ -629,11 +680,18 @@ def write_report(
         f"- Seed cases: `{', '.join(seed_cases)}`",
         f"- Saturated successful cases: `{saturated_count}`",
         f"- Structural stability: Plan B complex FIR has no feedback — **unconditionally stable**; saturation is the fixed-point failure mode.",
-        f"- QAM target used for resource recommendation: `{qam_target_percent:.6f}%`",
-        f"- EVM_LIN target used for resource recommendation: `{evm_lin_target_percent:.6f}%`",
+        f"- Behavior ripple target: `{target_ripple_db:.6f} dB`",
+        f"- QAM target used for pass/resource recommendation: `{qam_target_percent:.6f}%`",
+        f"- EVM_LIN target used for pass/resource recommendation: `{evm_lin_target_percent:.6f}%`",
+        f"- Passing cases (no saturation, ripple + QAM + EVM_LIN): `{passing_count}`",
         f"- Best fixed QAM EVM: `{best_qam.after_plan_b_fixed_evm_percent:.6f}%` from `{best_qam.case_id}` (seed `{best_qam.seed_case}`)",
         f"- Best fixed EVM_LIN: `{best_evm_lin.after_plan_b_fixed_evm_lin_percent:.6f}%` from `{best_evm_lin.case_id}`",
-        f"- Best fixed magnitude ripple: `{best_mag.fixed_total_magnitude_ripple_db:.6f} dB` from `{best_mag.case_id}`",
+        f"- Best fixed frequency-domain magnitude ripple: `{best_mag.fixed_total_magnitude_ripple_db:.6f} dB` from `{best_mag.case_id}`",
+        (
+            f"- Best fixed behavior multi-tone ripple: `{best_behavior.behavior_fixed_ripple_db:.6f} dB` from `{best_behavior.case_id}`"
+            if best_behavior.has_behavior_ripple
+            else "- Best fixed behavior multi-tone ripple: not available (behavior stage disabled or missing)"
+        ),
         f"- Lowest-resource passing recommendation: `{best_resource.case_id}` with `{best_resource.estimated_real_multiplier_count}` estimated real multipliers, `{best_resource.after_plan_b_fixed_evm_percent:.6f}%` QAM EVM, and `{best_resource.after_plan_b_fixed_evm_lin_percent:.6f}%` EVM_LIN",
         "",
         "## Seed Robustness",

@@ -61,9 +61,7 @@ class AllPassDesign:
 
 def find_latest_group_delay_csv(data_root: Path = DATA_ROOT) -> Path:
     candidates = sorted(
-        list(data_root.glob("base_plan_pipeline_data_*/l1_09_fix_group_delay/group_delay_analysis.csv"))
-        + list(data_root.glob("full_combined_*/l1_09_fix_group_delay/group_delay_analysis.csv"))
-        + list(data_root.glob("h1_full_combined_random_*/l1_09_fix_group_delay/group_delay_analysis.csv")),
+        data_root.glob("base_plan_pipeline_data_*/l1_09_fix_group_delay/group_delay_analysis.csv"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -504,7 +502,7 @@ def parse_args() -> argparse.Namespace:
         "--sections",
         type=int,
         default=default_sections,
-        help=f"Number of second-order all-pass sections. Default from L1_09_experiment_config.json: {default_sections}.",
+        help=f"Number of second-order all-pass sections. Default from config_base_plan.json: {default_sections}.",
     )
     parser.add_argument(
         "--margin-ns",
@@ -516,7 +514,7 @@ def parse_args() -> argparse.Namespace:
         "--smooth-window",
         type=int,
         default=default_smooth_window,
-        help=f"Odd moving-average window used only for fitting the target delay shape. Default from L1_09_experiment_config.json: {default_smooth_window}.",
+        help=f"Odd moving-average window used only for fitting the target delay shape. Default from config_base_plan.json: {default_smooth_window}.",
     )
     return parser.parse_args()
 

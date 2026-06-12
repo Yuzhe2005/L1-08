@@ -8,11 +8,19 @@
     "input_config": "config_input.json",
     "output_root": "sweep_result"
   },
+  "run": {
+    "dry_run": false
+  },
   "output": {
     "sweep_folder_name": "base_plan_sweep_bw1g_3seed",
     "group_by_current_seed": true,
     "overwrite_existing_combo": true,
     "cleanup_sim_outputs_after_copy": true
+  },
+  "analysis": {
+    "target_ripple_db": 0.1,
+    "l1_08_evm_lin_target_percent": 0.1,
+    "full_chain_evm_lin_target_percent": 0.05
   },
   "stages": {
     "run_behavior_simulation": true,

@@ -272,13 +272,13 @@ def parse_args() -> argparse.Namespace:
         "--fs-hz",
         type=float,
         default=default_fs_hz,
-        help=f"Sampling rate in Hz. Default: {default_fs_hz:.6g} from L1_08_experiment_config.json.",
+        help=f"Sampling rate in Hz. Default: {default_fs_hz:.6g} from config_input.json / config_base_plan.json.",
     )
     parser.add_argument(
         "--tap-num",
         type=int,
         default=default_tap_num,
-        help=f"FIR tap count. Default: {default_tap_num} from L1_08_experiment_config.json.",
+        help=f"FIR tap count. Default: {default_tap_num} from config_input.json / config_base_plan.json.",
     )
     parser.add_argument(
         "--regularization",
@@ -286,7 +286,7 @@ def parse_args() -> argparse.Namespace:
         default=default_regularization,
         help=(
             "Optional ridge regularization for least-squares fit. "
-            f"Default: {default_regularization:.6g} from L1_08_experiment_config.json."
+            f"Default: {default_regularization:.6g} from config_input.json / config_base_plan.json."
         ),
     )
     parser.add_argument(

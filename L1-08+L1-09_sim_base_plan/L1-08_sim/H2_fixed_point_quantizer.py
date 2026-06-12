@@ -346,19 +346,19 @@ def parse_args() -> argparse.Namespace:
         "--fs-hz",
         type=float,
         default=default_fs_hz,
-        help=f"Sampling rate in Hz. Default: {default_fs_hz:.6g} from L1_08_experiment_config.json.",
+        help=f"Sampling rate in Hz. Default: {default_fs_hz:.6g} from config_input.json / config_base_plan.json.",
     )
     parser.add_argument(
         "--coeff-total-bits",
         type=int,
         default=default_total_bits,
-        help=f"Coefficient total bits. Default: {default_total_bits} from L1_08_experiment_config.json.",
+        help=f"Coefficient total bits. Default: {default_total_bits} from config_input.json / config_base_plan.json.",
     )
     parser.add_argument(
         "--coeff-frac-bits",
         type=int,
         default=default_frac_bits,
-        help=f"Coefficient fractional bits. Default: {default_frac_bits} from L1_08_experiment_config.json.",
+        help=f"Coefficient fractional bits. Default: {default_frac_bits} from config_input.json / config_base_plan.json.",
     )
     parser.add_argument(
         "--output-csv",

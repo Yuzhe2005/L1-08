@@ -462,8 +462,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--output-dir", type=Path, default=None, help="Data output directory. Defaults to data/<run>/l1_09_fix_allpass_iir_fixed.")
     parser.add_argument("--graph-dir", type=Path, default=None, help="Graph output directory. Defaults to graph/<run>/l1_09_fix_allpass_iir_fixed.")
-    parser.add_argument("--coeff-total-bits", type=int, default=default_total_bits, help=f"Signed fixed-point coefficient total bits. Default from L1_09_experiment_config.json: {default_total_bits}.")
-    parser.add_argument("--coeff-frac-bits", type=int, default=default_frac_bits, help=f"Signed fixed-point coefficient fractional bits. Default from L1_09_experiment_config.json: {default_frac_bits}.")
+    parser.add_argument("--coeff-total-bits", type=int, default=default_total_bits, help=f"Signed fixed-point coefficient total bits. Default from config_base_plan.json: {default_total_bits}.")
+    parser.add_argument("--coeff-frac-bits", type=int, default=default_frac_bits, help=f"Signed fixed-point coefficient fractional bits. Default from config_base_plan.json: {default_frac_bits}.")
     return parser.parse_args()
 
 

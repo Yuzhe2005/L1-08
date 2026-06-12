@@ -5,9 +5,9 @@
       "h1_csv": null
     },
     "design": {
-      "fs_hz": 12000000000.0,
+      "fs_hz": 24000000000.0,
       "tap_num": 256,
-      "regularization": 1e-06,
+      "regularization": 0.00001,
       "reference_delay_samples": null
     },
     "fixed_point": {

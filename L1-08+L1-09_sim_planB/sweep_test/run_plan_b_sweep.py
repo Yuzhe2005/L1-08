@@ -1,4 +1,3 @@
-import argparse
 import csv
 import json
 import os
@@ -14,14 +13,22 @@ import numpy as np
 
 
 import plan_b_sweep_bootstrap  # noqa: F401
+from plan_b_sweep_config import (
+    STAGE_NAME,
+    SWEEP_CONFIG_PATH,
+    PlanBSweepStageSettings,
+    analysis_settings,
+    load_sweep_config,
+    stages_settings,
+    sweep_output_dir,
+)
+from shared_sim.behavior_utils import BehaviorConfig
 from shared_sim.config import selected_profile
 from shared_sim.paths import DATA_ROOT, REPO_ROOT
 
 PLAN_B_ROOT = Path(__file__).resolve().parent.parent
 H1_SOURCE_SCRIPT = REPO_ROOT / "shared_sim" / "h1_source.py"
-SWEEP_RESULT_ROOT = REPO_ROOT / "sweep_result"
-DEFAULT_SWEEP_CONFIG = REPO_ROOT / "config_plan_b_sweep.json"
-MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_plan_b_qam_sweep_matplotlib" / f"pid_{os.getpid()}"
+MPLCONFIG_ROOT = Path(tempfile.gettempdir()) / "rigol_plan_b_sweep_matplotlib" / f"pid_{os.getpid()}"
 
 MPLCONFIG_ROOT.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIG_ROOT))
@@ -31,7 +38,6 @@ from complex_fir_designer import (
     default_h1_csv,
     fixed_point_choices,
     load_h1_response,
-    load_json_config,
     parse_optional_path,
     resolve_run_dir,
     run_plan_b_case,
@@ -45,10 +51,8 @@ from plan_b_evm_lin_calculator import (
     run_evm_lin_from_total_responses,
     save_outputs as save_plan_b_evm_lin_outputs,
 )
+from plan_b_behavior_sim import run_plan_b_behavior_sim, save_plan_b_behavior_outputs
 from plan_b_qam_evm_validator import PlanBCoefficients, run_plan_b_qam_evm_validation, save_plan_b_qam_outputs
-
-
-STAGE_NAME = "plan_b_qam_sweep"
 
 
 @dataclass(frozen=True)
@@ -87,61 +91,48 @@ class MemberValidationSettings:
         }
 
 
-def resolve_member_validation_settings(
-    profile: str | None,
-    qam_seed: int,
-    args: argparse.Namespace,
-) -> MemberValidationSettings:
-    fs_hz = float(get_common_config_value("fs_hz", args.fs_hz, profile_name=profile))
+def resolve_member_validation_settings(profile: str | None, qam_seed: int) -> MemberValidationSettings:
+    behavior_samples = int(get_active_config_value("behavior", "samples", 65536, profile_name=profile))
+    behavior_tone_min_hz = float(get_active_config_value("behavior", "tone_min_hz", 3.55e9, profile_name=profile))
+    behavior_tone_max_hz = float(get_active_config_value("behavior", "tone_max_hz", 4.45e9, profile_name=profile))
+    behavior_peak_amplitude = float(get_active_config_value("behavior", "peak_amplitude", 0.8, profile_name=profile))
+    behavior_seed = int(get_active_config_value("behavior", "seed", 12345, profile_name=profile))
+    fs_hz = float(get_common_config_value("fs_hz", 12e9, profile_name=profile))
     return MemberValidationSettings(
         fs_hz=fs_hz,
-        samples=int(
-            get_input_config_value("qam_evm", "samples", args.samples, profile_name=profile)
-        ),
+        samples=int(get_input_config_value("qam_evm", "samples", behavior_samples, profile_name=profile)),
         freq_min_hz=float(
-            get_input_config_value(
-                "qam_evm",
-                "freq_min_hz",
-                get_active_config_value(
-                    "behavior",
-                    "tone_min_hz",
-                    args.freq_min_hz,
-                    profile_name=profile,
-                ),
-                profile_name=profile,
-            )
+            get_input_config_value("qam_evm", "freq_min_hz", behavior_tone_min_hz, profile_name=profile)
         ),
         freq_max_hz=float(
-            get_input_config_value(
-                "qam_evm",
-                "freq_max_hz",
-                get_active_config_value(
-                    "behavior",
-                    "tone_max_hz",
-                    args.freq_max_hz,
-                    profile_name=profile,
-                ),
-                profile_name=profile,
-            )
+            get_input_config_value("qam_evm", "freq_max_hz", behavior_tone_max_hz, profile_name=profile)
         ),
-        qam_order=int(get_input_config_value("qam_evm", "qam_order", args.qam_order, profile_name=profile)),
+        qam_order=int(get_input_config_value("qam_evm", "qam_order", 64, profile_name=profile)),
         peak_amplitude=float(
-            get_input_config_value(
-                "qam_evm",
-                "peak_amplitude",
-                args.peak_amplitude,
-                profile_name=profile,
-            )
+            get_input_config_value("qam_evm", "peak_amplitude", behavior_peak_amplitude, profile_name=profile)
         ),
         seed=qam_seed,
         max_constellation_points=int(
-            get_input_config_value(
-                "qam_evm",
-                "max_constellation_points",
-                args.max_constellation_points,
-                profile_name=profile,
-            )
+            get_input_config_value("qam_evm", "max_constellation_points", 3000, profile_name=profile)
         ),
+    )
+
+
+def default_qam_seed(profile: str | None) -> int:
+    behavior_seed = int(get_active_config_value("behavior", "seed", 12345, profile_name=profile))
+    return int(get_input_config_value("qam_evm", "seed", behavior_seed + 10000, profile_name=profile))
+
+
+def resolve_behavior_config(profile: str | None, behavior_seed: int, fs_hz: float) -> BehaviorConfig:
+    return BehaviorConfig(
+        fs_hz=fs_hz,
+        measurement_samples=int(get_active_config_value("behavior", "samples", 65536, profile_name=profile)),
+        settle_samples=int(get_active_config_value("behavior", "settle_samples", 256, profile_name=profile)),
+        tone_count=int(get_active_config_value("behavior", "tone_count", 51, profile_name=profile)),
+        tone_min_hz=float(get_active_config_value("behavior", "tone_min_hz", 3.55e9, profile_name=profile)),
+        tone_max_hz=float(get_active_config_value("behavior", "tone_max_hz", 4.45e9, profile_name=profile)),
+        peak_amplitude=float(get_active_config_value("behavior", "peak_amplitude", 0.8, profile_name=profile)),
+        seed=int(behavior_seed),
     )
 
 
@@ -187,7 +178,7 @@ def member_prefix(profile: str | None, seed_case: dict | None) -> str:
 
 def current_plan_b_runs() -> set[Path]:
     runs: set[Path] = set()
-    for pattern in (f"{PLAN_B_RUN_NAME_PREFIX}*", "plan_b_full_combined_*", "full_combined_*"):
+    for pattern in (f"{PLAN_B_RUN_NAME_PREFIX}*",):
         for path in DATA_ROOT.glob(pattern):
             if path.is_dir() and (h1_data_dir(path) / "together.csv").is_file():
                 runs.add(path.resolve())
@@ -232,21 +223,6 @@ def regularization_label(value: float) -> str:
 
 def case_id(tap_num: int, regularization: float, coeff_total_bits: int, coeff_frac_bits: int) -> str:
     return f"tap{tap_num}_reg{regularization_label(regularization)}_q{coeff_total_bits}_{coeff_frac_bits}"
-
-
-def default_output_dir(run_dir: Path) -> Path:
-    return SWEEP_RESULT_ROOT / f"{STAGE_NAME}_{run_dir.name}"
-
-
-def resolve_configured_output_dir(output_config: dict[str, Any], run_dir: Path) -> Path:
-    sweep_root = parse_optional_path(output_config.get("sweep_result_root"))
-    if sweep_root is None:
-        sweep_root = SWEEP_RESULT_ROOT
-    elif not sweep_root.is_absolute():
-        sweep_root = REPO_ROOT / sweep_root
-
-    folder_name = str(output_config.get("sweep_folder_name") or f"{STAGE_NAME}_{run_dir.name}")
-    return sweep_root / folder_name
 
 
 def write_case_metadata_json(
@@ -315,6 +291,9 @@ def sweep_fieldnames() -> list[str]:
         "after_plan_b_evm_lin_phase_only_percent",
         "after_plan_b_fixed_evm_lin_phase_only_percent",
         "after_plan_b_fixed_evm_lin_fitted_delay_samples",
+        "behavior_fixed_ripple_db",
+        "behavior_float_ripple_db",
+        "behavior_fixed_pass_0p1db",
         "data_dir",
         "graph_dir",
     ]
@@ -332,55 +311,6 @@ def write_csv_dicts(output_csv: Path, rows: list[dict[str, Any]]) -> None:
 def write_parameter_json(output_json: Path, payload: dict[str, Any]) -> None:
     output_json.parent.mkdir(parents=True, exist_ok=True)
     output_json.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-
-def parse_args() -> argparse.Namespace:
-    default_fs_hz = float(plan_b_value("design", "fs_hz", 12e9))
-    default_samples = int(get_input_config_value("qam_evm", "samples", get_active_config_value("behavior", "samples", 65536)))
-    default_freq_min_hz = float(
-        get_input_config_value("qam_evm", "freq_min_hz", get_active_config_value("behavior", "tone_min_hz", 3.55e9))
-    )
-    default_freq_max_hz = float(
-        get_input_config_value("qam_evm", "freq_max_hz", get_active_config_value("behavior", "tone_max_hz", 4.45e9))
-    )
-    default_qam_order = int(get_input_config_value("qam_evm", "qam_order", 64))
-    default_peak_amplitude = float(
-        get_input_config_value("qam_evm", "peak_amplitude", get_active_config_value("behavior", "peak_amplitude", 0.8))
-    )
-    default_seed = int(get_input_config_value("qam_evm", "seed", get_active_config_value("behavior", "seed", 12345) + 10000))
-    default_max_points = int(get_input_config_value("qam_evm", "max_constellation_points", 3000))
-
-    parser = argparse.ArgumentParser(description="Run a small Plan B complex FIR QAM/EVM sweep on one completed H1 run.")
-    parser.add_argument("--run-dir", type=Path, default=None, help="Run data directory. Defaults to latest ready run.")
-    parser.add_argument("--h1-csv", type=Path, default=None, help="H1 together.csv. Defaults to data/<run>/h1_full_combined_random/together.csv.")
-    parser.add_argument("--output-dir", type=Path, default=None, help=f"Sweep output directory. Defaults to sweep_result/{STAGE_NAME}_<run>.")
-    parser.add_argument("--fs-hz", type=float, default=default_fs_hz, help=f"Sampling rate. Default: {default_fs_hz:.6g} Hz.")
-    parser.add_argument("--tap-num", type=int, nargs="+", default=[256, 320], help="Plan B tap counts. Default: 256 320.")
-    parser.add_argument(
-        "--regularization",
-        type=float,
-        nargs="+",
-        default=[1e-6, 1e-5],
-        help="Ridge regularization values. Default: 1e-6 1e-5.",
-    )
-    parser.add_argument("--coeff-total-bits", type=int, default=18, help="Fixed coefficient total bits. Default: 18.")
-    parser.add_argument("--coeff-frac-bits", type=int, default=15, help="Fixed coefficient fractional bits. Default: 15.")
-    parser.add_argument("--samples", type=int, default=default_samples, help=f"FFT/block sample count. Default: {default_samples}.")
-    parser.add_argument("--freq-min-hz", type=float, default=default_freq_min_hz, help=f"Minimum occupied QAM frequency. Default: {default_freq_min_hz:.6g} Hz.")
-    parser.add_argument("--freq-max-hz", type=float, default=default_freq_max_hz, help=f"Maximum occupied QAM frequency. Default: {default_freq_max_hz:.6g} Hz.")
-    parser.add_argument("--qam-order", type=int, default=default_qam_order, help=f"Square QAM order. Default: {default_qam_order}.")
-    parser.add_argument("--peak-amplitude", type=float, default=default_peak_amplitude, help=f"Input peak normalization. Default: {default_peak_amplitude:.6g}.")
-    parser.add_argument("--seed", type=int, default=default_seed, help=f"Random QAM seed. Default: {default_seed}.")
-    parser.add_argument("--max-constellation-points", type=int, default=default_max_points, help=f"Maximum constellation plot points. Default: {default_max_points}.")
-    parser.add_argument("--save-design-graphs", action="store_true", help="Also save Plan B frequency-domain design graphs for each case.")
-    parser.add_argument("--save-iq", action="store_true", help="Also write QAM time-domain IQ CSV files for each case.")
-    parser.add_argument(
-        "--sweep-test-config",
-        type=Path,
-        default=DEFAULT_SWEEP_CONFIG,
-        help=f"Plan B sweep config JSON. Default: {DEFAULT_SWEEP_CONFIG}",
-    )
-    return parser.parse_args()
 
 
 def build_design_cases(
@@ -419,7 +349,6 @@ def member_row_fields(profile: str | None, seed_case: dict | None, qam_seed: int
 
 
 def run_single_case(
-    args: argparse.Namespace,
     case: dict[str, Any],
     this_case_id: str,
     run_dir: Path,
@@ -428,6 +357,10 @@ def run_single_case(
     member_fields: dict[str, Any],
     validation: MemberValidationSettings,
     save_design_graphs: bool,
+    save_iq: bool,
+    stage_settings: PlanBSweepStageSettings,
+    target_ripple_db: float,
+    profile: str | None,
 ) -> dict[str, Any]:
     case_dir = output_dir / this_case_id
     case_data_dir = case_dir / "data"
@@ -477,34 +410,86 @@ def run_single_case(
             coefficients=design_result.design.coefficients,
             fixed_coefficients=design_result.quantized.coefficients_fixed,
         )
-        config = validation.as_qam_config()
-        qam_result = run_plan_b_qam_evm_validation(
-            run_dir=run_dir,
-            coefficients=coefficients,
-            config=config,
-            output_dir=case_data_dir,
-            graph_dir=case_graph_dir,
-        )
-        save_plan_b_qam_outputs(qam_result, save_iq=args.save_iq)
-        evm_lin_result = run_evm_lin_from_total_responses(
-            run_dir=run_dir,
-            output_dir=case_data_dir,
-            graph_dir=case_graph_dir,
-            fs_hz=validation.fs_hz,
-            full_freq_hz=h1.freq_hz,
-            h1_response=h1.complex_response,
-            plan_b_total_response=design_result.design.total_response,
-            plan_b_fixed_total_response=design_result.quantized.total_response,
-            freq_min_hz=validation.freq_min_hz,
-            freq_max_hz=validation.freq_max_hz,
-            coefficients_csv=design_result.paths["coefficients_csv"],
-            fixed_coefficients_csv=design_result.paths["fixed_coefficients_csv"],
-        )
-        save_plan_b_evm_lin_outputs(evm_lin_result)
-        evm_lin_metrics = metric_by_stage(evm_lin_result)
-        after_h1_evm_lin = evm_lin_metrics["after_h1"]
-        after_plan_b_evm_lin = evm_lin_metrics["after_plan_b_complex_fir"]
-        after_plan_b_fixed_evm_lin = evm_lin_metrics["after_plan_b_fixed_complex_fir"]
+        behavior_fields: dict[str, str] = {
+            "behavior_fixed_ripple_db": "",
+            "behavior_float_ripple_db": "",
+            "behavior_fixed_pass_0p1db": "",
+        }
+        if stage_settings.run_behavior_simulation:
+            behavior_seed = int(member_fields["behavior_seed"])
+            behavior_config = resolve_behavior_config(profile, behavior_seed, validation.fs_hz)
+            behavior_data_dir = case_data_dir / "plan_b_behavior"
+            behavior_graph_dir = case_graph_dir / "plan_b_behavior"
+            behavior_run = run_plan_b_behavior_sim(
+                run_dir=run_dir,
+                coefficients=coefficients,
+                config=behavior_config,
+                output_dir=behavior_data_dir,
+                graph_dir=behavior_graph_dir,
+            )
+            save_plan_b_behavior_outputs(behavior_run, save_iq=save_iq)
+            ripple_fixed = behavior_run.ripple_after_plan_b_fixed_db()
+            behavior_fields = {
+                "behavior_fixed_ripple_db": f"{ripple_fixed:.12e}",
+                "behavior_float_ripple_db": f"{behavior_run.ripple_after_plan_b_db():.12e}",
+                "behavior_fixed_pass_0p1db": str(ripple_fixed <= target_ripple_db),
+            }
+
+        qam_fields: dict[str, str] = {}
+        if stage_settings.run_qam_evm_simulation:
+            config = validation.as_qam_config()
+            qam_result = run_plan_b_qam_evm_validation(
+                run_dir=run_dir,
+                coefficients=coefficients,
+                config=config,
+                output_dir=case_data_dir,
+                graph_dir=case_graph_dir,
+            )
+            save_plan_b_qam_outputs(qam_result, save_iq=save_iq)
+            qam_fields = {
+                "after_h1_evm_percent": f"{qam_result.after_h1_metric.evm_percent:.9f}",
+                "after_plan_b_evm_percent": f"{qam_result.after_plan_b_metric.evm_percent:.9f}",
+                "after_plan_b_fixed_evm_percent": f"{qam_result.after_plan_b_fixed_metric.evm_percent:.9f}",
+                "after_h1_magnitude_only_evm_percent": f"{qam_result.after_h1_metric.magnitude_only_evm_percent:.9f}",
+                "after_plan_b_magnitude_only_evm_percent": f"{qam_result.after_plan_b_metric.magnitude_only_evm_percent:.9f}",
+                "after_plan_b_fixed_magnitude_only_evm_percent": f"{qam_result.after_plan_b_fixed_metric.magnitude_only_evm_percent:.9f}",
+                "after_plan_b_fixed_fitted_delay_samples": f"{qam_result.after_plan_b_fixed_metric.fitted_delay_samples:.9f}",
+            }
+
+        evm_lin_fields: dict[str, str] = {}
+        if stage_settings.run_evm_lin:
+            evm_lin_result = run_evm_lin_from_total_responses(
+                run_dir=run_dir,
+                output_dir=case_data_dir,
+                graph_dir=case_graph_dir,
+                fs_hz=validation.fs_hz,
+                full_freq_hz=h1.freq_hz,
+                h1_response=h1.complex_response,
+                plan_b_total_response=design_result.design.total_response,
+                plan_b_fixed_total_response=design_result.quantized.total_response,
+                freq_min_hz=validation.freq_min_hz,
+                freq_max_hz=validation.freq_max_hz,
+                coefficients_csv=design_result.paths["coefficients_csv"],
+                fixed_coefficients_csv=design_result.paths["fixed_coefficients_csv"],
+            )
+            save_plan_b_evm_lin_outputs(evm_lin_result)
+            evm_lin_metrics = metric_by_stage(evm_lin_result)
+            after_h1_evm_lin = evm_lin_metrics["after_h1"]
+            after_plan_b_evm_lin = evm_lin_metrics["after_plan_b_complex_fir"]
+            after_plan_b_fixed_evm_lin = evm_lin_metrics["after_plan_b_fixed_complex_fir"]
+            evm_lin_fields = {
+                "after_h1_evm_lin_percent": f"{after_h1_evm_lin.evm_lin_percent:.9f}",
+                "after_plan_b_evm_lin_percent": f"{after_plan_b_evm_lin.evm_lin_percent:.9f}",
+                "after_plan_b_fixed_evm_lin_percent": f"{after_plan_b_fixed_evm_lin.evm_lin_percent:.9f}",
+                "after_h1_evm_lin_magnitude_only_percent": f"{after_h1_evm_lin.magnitude_only_evm_percent:.9f}",
+                "after_plan_b_evm_lin_magnitude_only_percent": f"{after_plan_b_evm_lin.magnitude_only_evm_percent:.9f}",
+                "after_plan_b_fixed_evm_lin_magnitude_only_percent": f"{after_plan_b_fixed_evm_lin.magnitude_only_evm_percent:.9f}",
+                "after_h1_evm_lin_phase_only_percent": f"{after_h1_evm_lin.phase_only_evm_percent:.9f}",
+                "after_plan_b_evm_lin_phase_only_percent": f"{after_plan_b_evm_lin.phase_only_evm_percent:.9f}",
+                "after_plan_b_fixed_evm_lin_phase_only_percent": f"{after_plan_b_fixed_evm_lin.phase_only_evm_percent:.9f}",
+                "after_plan_b_fixed_evm_lin_fitted_delay_samples": f"{after_plan_b_fixed_evm_lin.fitted_delay_samples:.9f}",
+            }
+
         return {
             **row_base,
             "status": "ok",
@@ -514,80 +499,47 @@ def run_single_case(
             "fixed_total_magnitude_ripple_db": f"{design_result.fixed_metrics['fixed_total_magnitude_ripple_db']:.12e}",
             "fixed_total_group_delay_ripple_pp_ns": f"{design_result.fixed_metrics['fixed_total_group_delay_ripple_pp_ns']:.12e}",
             "fixed_phase_error_rms_rad": f"{design_result.fixed_metrics['fixed_phase_error_rms_rad']:.12e}",
-            "after_h1_evm_percent": f"{qam_result.after_h1_metric.evm_percent:.9f}",
-            "after_plan_b_evm_percent": f"{qam_result.after_plan_b_metric.evm_percent:.9f}",
-            "after_plan_b_fixed_evm_percent": f"{qam_result.after_plan_b_fixed_metric.evm_percent:.9f}",
-            "after_h1_magnitude_only_evm_percent": f"{qam_result.after_h1_metric.magnitude_only_evm_percent:.9f}",
-            "after_plan_b_magnitude_only_evm_percent": f"{qam_result.after_plan_b_metric.magnitude_only_evm_percent:.9f}",
-            "after_plan_b_fixed_magnitude_only_evm_percent": f"{qam_result.after_plan_b_fixed_metric.magnitude_only_evm_percent:.9f}",
-            "after_plan_b_fixed_fitted_delay_samples": f"{qam_result.after_plan_b_fixed_metric.fitted_delay_samples:.9f}",
-            "after_h1_evm_lin_percent": f"{after_h1_evm_lin.evm_lin_percent:.9f}",
-            "after_plan_b_evm_lin_percent": f"{after_plan_b_evm_lin.evm_lin_percent:.9f}",
-            "after_plan_b_fixed_evm_lin_percent": f"{after_plan_b_fixed_evm_lin.evm_lin_percent:.9f}",
-            "after_h1_evm_lin_magnitude_only_percent": f"{after_h1_evm_lin.magnitude_only_evm_percent:.9f}",
-            "after_plan_b_evm_lin_magnitude_only_percent": f"{after_plan_b_evm_lin.magnitude_only_evm_percent:.9f}",
-            "after_plan_b_fixed_evm_lin_magnitude_only_percent": f"{after_plan_b_fixed_evm_lin.magnitude_only_evm_percent:.9f}",
-            "after_h1_evm_lin_phase_only_percent": f"{after_h1_evm_lin.phase_only_evm_percent:.9f}",
-            "after_plan_b_evm_lin_phase_only_percent": f"{after_plan_b_evm_lin.phase_only_evm_percent:.9f}",
-            "after_plan_b_fixed_evm_lin_phase_only_percent": f"{after_plan_b_fixed_evm_lin.phase_only_evm_percent:.9f}",
-            "after_plan_b_fixed_evm_lin_fitted_delay_samples": f"{after_plan_b_fixed_evm_lin.fitted_delay_samples:.9f}",
+            **qam_fields,
+            **evm_lin_fields,
+            **behavior_fields,
         }
     except Exception as exc:
         return {**row_base, "status": "error", "error": str(exc)}
 
 
 def main() -> None:
-    args = parse_args()
     base_env = sweep_env()
+    config_payload = load_sweep_config(SWEEP_CONFIG_PATH)
+    input_config = config_payload.get("input", {})
+    output_config = config_payload.get("output", {})
+    design_config = config_payload.get("design_sweep", {})
+    fixed_config = config_payload.get("fixed_point_sweep", {})
+    sweep_block = config_payload.get("sweep")
+    if not isinstance(input_config, dict) or not isinstance(output_config, dict):
+        raise ValueError("Sweep config 'input' and 'output' fields must be JSON objects.")
+    if not isinstance(design_config, dict) or not isinstance(fixed_config, dict):
+        raise ValueError("Sweep config 'design_sweep' and 'fixed_point_sweep' fields must be JSON objects.")
+    if sweep_block is not None and not isinstance(sweep_block, dict):
+        raise ValueError("Sweep config 'sweep' field must be a JSON object.")
 
-    config_payload: dict[str, Any] | None = None
-    sweep_block: dict[str, Any] | None = None
-    if args.sweep_test_config is not None and args.sweep_test_config.is_file():
-        config_payload = load_json_config(args.sweep_test_config)
-        input_config = config_payload.get("input", {})
-        output_config = config_payload.get("output", {})
-        design_config = config_payload.get("design_sweep", {})
-        fixed_config = config_payload.get("fixed_point_sweep", {})
-        sweep_block = config_payload.get("sweep")
-        if not isinstance(input_config, dict) or not isinstance(output_config, dict):
-            raise ValueError("Sweep config 'input' and 'output' fields must be JSON objects.")
-        if not isinstance(design_config, dict) or not isinstance(fixed_config, dict):
-            raise ValueError("Sweep config 'design_sweep' and 'fixed_point_sweep' fields must be JSON objects.")
-        if sweep_block is not None and not isinstance(sweep_block, dict):
-            raise ValueError("Sweep config 'sweep' field must be a JSON object.")
+    analysis_cfg = analysis_settings(config_payload)
+    stage_cfg = stages_settings(config_payload)
 
-        fs_values = [float(value) for value in config_values(design_config, "fs_hz", args.fs_hz)]
-        tap_values = [int(value) for value in config_values(design_config, "tap_num", args.tap_num)]
-        regularization_values = [float(value) for value in config_values(design_config, "regularization", args.regularization)]
-        delay_values = config_values(design_config, "reference_delay_samples", None)
-        quantization_choices = fixed_point_choices(fixed_config)
-        save_design_graphs = bool(output_config.get("save_case_graphs", args.save_design_graphs))
-        configured_run_dir = parse_optional_path(input_config.get("run_dir"))
-        configured_h1_csv = parse_optional_path(input_config.get("h1_csv"))
-    else:
-        input_config = {}
-        output_config = {}
-        fs_values = [args.fs_hz]
-        tap_values = [int(tap_num) for tap_num in args.tap_num]
-        regularization_values = [float(value) for value in args.regularization]
-        delay_values = [None]
-        quantization_choices = [(args.coeff_total_bits, args.coeff_frac_bits)]
-        save_design_graphs = args.save_design_graphs
-        configured_run_dir = args.run_dir
-        configured_h1_csv = args.h1_csv
+    default_design_fs_hz = float(plan_b_value("design", "fs_hz", 12e9))
+    fs_values = [float(value) for value in config_values(design_config, "fs_hz", default_design_fs_hz)]
+    tap_values = [int(value) for value in config_values(design_config, "tap_num", 256)]
+    regularization_values = [float(value) for value in config_values(design_config, "regularization", 1e-6)]
+    delay_values = config_values(design_config, "reference_delay_samples", None)
+    quantization_choices = fixed_point_choices(fixed_config)
+    save_design_graphs = bool(output_config.get("save_case_graphs", True))
+    save_iq = bool(output_config.get("save_iq", False))
+    configured_run_dir = parse_optional_path(input_config.get("run_dir"))
+    configured_h1_csv = parse_optional_path(input_config.get("h1_csv"))
 
     ensemble_members = parse_ensemble_members(sweep_block if isinstance(sweep_block, dict) else None)
     design_cases = build_design_cases(fs_values, tap_values, regularization_values, delay_values, quantization_choices)
 
-    placeholder_run_dir = configured_run_dir or REPO_ROOT / "data"
-    if args.output_dir is not None:
-        output_dir = args.output_dir
-    elif config_payload is not None:
-        output_dir = resolve_configured_output_dir(output_config, Path(placeholder_run_dir))
-    else:
-        output_dir = default_output_dir(Path(placeholder_run_dir))
-    if not output_dir.is_absolute():
-        output_dir = REPO_ROOT / output_dir
+    output_dir = sweep_output_dir(config_payload)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     parameter_json = output_dir / "parameter_setting_comb.json"
@@ -608,10 +560,10 @@ def main() -> None:
         if not h1_csv.is_absolute():
             h1_csv = REPO_ROOT / h1_csv
         h1 = load_h1_response(h1_csv)
-        qam_seed = int(seed_case["qam_seed"]) if seed_case else args.seed
+        qam_seed = int(seed_case["qam_seed"]) if seed_case else default_qam_seed(profile)
         prefix = member_prefix(profile, seed_case)
         member_fields = member_row_fields(profile, seed_case, qam_seed)
-        validation = resolve_member_validation_settings(profile, qam_seed, args)
+        validation = resolve_member_validation_settings(profile, qam_seed)
         validation_by_profile[profile] = validation
 
         for case in design_cases:
@@ -629,7 +581,6 @@ def main() -> None:
             )
             print(f"[{case_index}/{total_cases}] {this_case_id}", flush=True)
             row = run_single_case(
-                args=args,
                 case=case,
                 this_case_id=this_case_id,
                 run_dir=run_dir,
@@ -638,6 +589,10 @@ def main() -> None:
                 member_fields=member_fields,
                 validation=validation,
                 save_design_graphs=save_design_graphs,
+                save_iq=save_iq,
+                stage_settings=stage_cfg,
+                target_ripple_db=analysis_cfg.target_ripple_db,
+                profile=profile,
             )
             rows.append(row)
             write_csv_dicts(summary_csv, rows)
@@ -648,7 +603,7 @@ def main() -> None:
             "stage": STAGE_NAME,
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "output_dir": str(output_dir),
-            "source_config": str(args.sweep_test_config) if args.sweep_test_config is not None else None,
+            "source_config": str(SWEEP_CONFIG_PATH),
             "ensemble_members": [
                 {"profile": profile, "seed_case": seed_case} for profile, seed_case in ensemble_members
             ],
@@ -664,7 +619,7 @@ def main() -> None:
             },
             "sweep_config": config_payload,
             "save_design_graphs": save_design_graphs,
-            "save_iq": args.save_iq,
+            "save_iq": save_iq,
             "case_count": len(all_case_entries),
             "cases": all_case_entries,
         },
@@ -687,7 +642,7 @@ def main() -> None:
                 },
                 "case_count": len(rows),
                 "ok_count": sum(1 for row in rows if row.get("status") == "ok"),
-                "source_config": args.sweep_test_config,
+                "source_config": str(SWEEP_CONFIG_PATH),
                 "ensemble_member_count": len(ensemble_members),
                 "tap_num": tap_values,
                 "regularization": regularization_values,
@@ -696,7 +651,7 @@ def main() -> None:
                     for total_bits, frac_bits in quantization_choices
                 ],
                 "save_design_graphs": save_design_graphs,
-                "save_iq": args.save_iq,
+                "save_iq": save_iq,
             },
         )
 

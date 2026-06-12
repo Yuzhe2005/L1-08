@@ -1,32 +1,14 @@
-import argparse
 from pathlib import Path
 
 from existing_pipeline_runner import ExistingPipelineComboRunner, write_sweep_summary_csv
 from sweep_config import SweepSettings
 
 
-DEFAULT_CONFIG = Path(__file__).resolve().parents[2] / "config_base_plan_sweep.json"
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run full L1-08 + L1-09 bandwidth/seed/fixed-point sweep.")
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=DEFAULT_CONFIG,
-        help=f"Sweep config JSON. Default: {DEFAULT_CONFIG}",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Print selected combos and output folder without running any simulation stage.",
-    )
-    return parser.parse_args()
+SWEEP_CONFIG = Path(__file__).resolve().parents[2] / "config_base_plan_sweep.json"
 
 
 def main() -> None:
-    args = parse_args()
-    settings = SweepSettings.from_json(args.config)
+    settings = SweepSettings.from_json(SWEEP_CONFIG)
     combos = settings.combos()
     sweep_dir = settings.sweep_output_dir()
 
@@ -40,7 +22,7 @@ def main() -> None:
     for combo in combos:
         print(f"  {combo.folder_name}: {combo.to_dict()}")
 
-    if args.dry_run:
+    if settings.run.dry_run:
         print("dry_run: no simulation executed")
         return
 

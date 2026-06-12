@@ -10,7 +10,7 @@
     },
     "l1_09": {
       "allpass": {
-        "sections": 8,
+        "sections": 12,
         "margin_ns": null,
         "smooth_window": 31
       },

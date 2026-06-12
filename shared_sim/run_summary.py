@@ -118,10 +118,6 @@ def update_run_summary(
 
     summary["plan_b_config"] = _jsonable(load_plan_b_config())
 
-    summary["experiment_config"] = _jsonable(load_input_config())
-
-
-
     stages = summary.setdefault("stages", {})
 
     stages[stage_name] = _jsonable(stage_summary)

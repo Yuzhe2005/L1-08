@@ -106,13 +106,19 @@ class SweepCombo:
             "l1_09_coeff_total_bits": self.l1_09_fixed_point.total_bits,
             "l1_09_coeff_frac_bits": self.l1_09_fixed_point.frac_bits,
             "l1_09_fixed_format": self.l1_09_fixed_point.display_label,
-            # Legacy column names are kept so the existing analyzer can still read the summary CSV.
-            "tap_num": self.l1_08_tap_num,
-            "regularization": self.l1_08_regularization,
-            "coeff_total_bits": self.l1_08_fixed_point.total_bits,
-            "coeff_frac_bits": self.l1_08_fixed_point.frac_bits,
-            "format": self.l1_08_fixed_point.display_label,
         }
+
+
+@dataclass(frozen=True)
+class RunConfig:
+    dry_run: bool
+
+
+@dataclass(frozen=True)
+class AnalysisConfig:
+    target_ripple_db: float
+    l1_08_evm_lin_target_percent: float
+    full_chain_evm_lin_target_percent: float
 
 
 @dataclass(frozen=True)
@@ -143,7 +149,9 @@ class SweepSettings:
     l1_09_config: Path
     input_config: Path
     output_root: Path
+    run: RunConfig
     output: OutputConfig
+    analysis: AnalysisConfig
     stages: StageConfig
     profiles: list[str | None]
     seed_cases: list[SeedCase | None]
@@ -161,8 +169,14 @@ class SweepSettings:
             raise ValueError(f"{config_path} must contain a JSON object.")
 
         paths = _require_dict(loaded, "paths")
+        run = loaded.get("run", {})
         output = _require_dict(loaded, "output")
+        analysis = loaded.get("analysis", {})
         stages = _require_dict(loaded, "stages")
+        if not isinstance(run, dict):
+            raise ValueError("config field 'run' must be an object.")
+        if not isinstance(analysis, dict):
+            raise ValueError("config field 'analysis' must be an object.")
         sweep = _require_dict(loaded, "sweep")
         l1_08 = _require_dict(sweep, "l1_08") if "l1_08" in sweep else sweep
         l1_09 = _require_dict(sweep, "l1_09") if "l1_09" in sweep else {}
@@ -174,12 +188,18 @@ class SweepSettings:
         return cls(
             config_path=config_path,
             repo_root=_resolve_path(config_path, str(paths.get("repo_root", "."))),
-            l1_08_sim_dir=_resolve_path(config_path, str(paths.get("l1_08_sim_dir", paths.get("sim_dir", "L1-08+L1-09_sim_base_plan/L1-08_sim")))),
+            l1_08_sim_dir=_resolve_path(config_path, str(paths.get("l1_08_sim_dir", "L1-08+L1-09_sim_base_plan/L1-08_sim"))),
             l1_09_sim_dir=_resolve_path(config_path, str(paths.get("l1_09_sim_dir", "L1-08+L1-09_sim_base_plan/L1_09_sim"))),
-            l1_08_config=_resolve_path(config_path, str(paths.get("l1_08_config", paths.get("base_experiment_config", "config_base_plan.json")))),
+            l1_08_config=_resolve_path(config_path, str(paths.get("l1_08_config", "config_base_plan.json"))),
             l1_09_config=_resolve_path(config_path, str(paths.get("l1_09_config", "config_base_plan.json"))),
             input_config=_resolve_path(config_path, str(paths.get("input_config", "config_input.json"))),
             output_root=_resolve_path(config_path, str(paths.get("output_root", "sweep_result"))),
+            run=RunConfig(dry_run=bool(run.get("dry_run", False))),
+            analysis=AnalysisConfig(
+                target_ripple_db=float(analysis.get("target_ripple_db", 0.1)),
+                l1_08_evm_lin_target_percent=float(analysis.get("l1_08_evm_lin_target_percent", 0.10)),
+                full_chain_evm_lin_target_percent=float(analysis.get("full_chain_evm_lin_target_percent", 0.05)),
+            ),
             output=OutputConfig(
                 group_by_current_seed=bool(output.get("group_by_current_seed", True)),
                 overwrite_existing_combo=bool(output.get("overwrite_existing_combo", True)),
@@ -249,11 +269,6 @@ class SweepSettings:
         if self.output.group_by_current_seed:
             return self.output_root / self.current_seed_label()
         return self.output_root
-
-
-# Backward-compatible alias used by older caller code.
-SweepSettings.sim_dir = property(lambda self: self.l1_08_sim_dir)
-SweepSettings.base_experiment_config = property(lambda self: self.l1_08_config)
 
 
 def _optional_non_empty_str(value: Any) -> str | None:
@@ -337,7 +352,7 @@ def _fixed_point_formats(section: dict[str, Any]) -> list[FixedPointFormat]:
             raise ValueError("fixed_point must be an object, a non-empty list, or {'formats': [...]}." )
         return [_parse_fixed_point_item(item) for item in value]
 
-    # Legacy layout: coeff_total_bits plus coeff_frac_bits.
+    # Alternate layout: separate coeff_total_bits / coeff_frac_bits lists.
     total_bits_values = _as_non_empty_list(section.get("coeff_total_bits"), "coeff_total_bits")
     frac_bits_values = _as_non_empty_list(section.get("coeff_frac_bits"), "coeff_frac_bits")
     return [

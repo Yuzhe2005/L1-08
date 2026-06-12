@@ -540,13 +540,13 @@ def parse_args() -> argparse.Namespace:
         "--fs-hz",
         type=float,
         default=default_fs_hz,
-        help=f"Sampling rate in Hz. Default: {default_fs_hz:.6g} from L1_08_experiment_config.json.",
+        help=f"Sampling rate in Hz. Default: {default_fs_hz:.6g} from config_input.json.",
     )
     parser.add_argument(
         "--samples",
         type=int,
         default=default_samples,
-        help=f"Measurement sample count. Default: {default_samples} from L1_08_experiment_config.json.",
+        help=f"Measurement sample count. Default: {default_samples} from config_input.json.",
     )
     parser.add_argument(
         "--settle-samples",
@@ -558,7 +558,7 @@ def parse_args() -> argparse.Namespace:
         "--tone-count",
         type=int,
         default=default_tone_count,
-        help=f"Number of tones. Default: {default_tone_count} from L1_08_experiment_config.json.",
+        help=f"Number of tones. Default: {default_tone_count} from config_input.json.",
     )
     parser.add_argument(
         "--tone-min-hz",

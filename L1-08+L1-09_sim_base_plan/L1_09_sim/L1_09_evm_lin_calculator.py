@@ -381,7 +381,7 @@ def parse_args() -> argparse.Namespace:
         "--coeff-mode",
         choices=("float", "fixed"),
         default=default_coeff_mode,
-        help=f"All-pass coefficient set to use when --allpass-coefficients-csv is omitted. Default from L1_09_experiment_config.json: {default_coeff_mode}.",
+        help=f"All-pass coefficient set to use when --allpass-coefficients-csv is omitted. Default from config_base_plan.json: {default_coeff_mode}.",
     )
     parser.add_argument(
         "--allpass-coefficients-csv",

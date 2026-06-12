@@ -56,7 +56,7 @@ def l1_09_command(run_dir: Path | None) -> PipelineCommand:
 
 
 def current_ready_runs() -> set[Path]:
-    patterns = (f"{BASE_RUN_NAME_PREFIX}*", "full_combined_*")
+    patterns = (f"{BASE_RUN_NAME_PREFIX}*",)
     runs: set[Path] = set()
     for pattern in patterns:
         runs.update(path.resolve() for path in DATA_ROOT.glob(pattern) if path.is_dir())

@@ -140,7 +140,7 @@ run: full_combined_20260605_090952
 输出位于：
 
 ```text
-sweep_result/plan_b_qam_sweep_full_combined_20260605_090952/
+sweep_result/plan_b_sweep_bw1g_3seed/
 ```
 
 小 sweep 的 QAM/EVM 结果如下：
