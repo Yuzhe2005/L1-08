@@ -99,7 +99,12 @@ def main() -> None:
     rows = load_summary(summary_csv)
     ok_rows = [row for row in rows if row.is_ok]
     if not ok_rows:
-        raise ValueError(f"{summary_csv} has no successful rows to analyze.")
+        report_md = output_dir / "sweep_analysis_report.md"
+        write_failure_report(rows, report_md, summary_csv)
+        print(f"summary_csv: {summary_csv}")
+        print(f"report_md: {report_md}")
+        print(f"No successful cases to analyze ({len(rows)} failed). See report for error details.")
+        return
 
     analysis = analyze_rows(ok_rows, args.qam_target_percent, args.evm_lin_target_percent)
     best_csv = output_dir / "sweep_best_combos.csv"
@@ -166,6 +171,18 @@ def parse_optional_int(value: str | None) -> int | None:
     return int(value)
 
 
+def parse_metric_int(value: str | None, default: int = 0) -> int:
+    if value is None or str(value).strip() == "":
+        return default
+    return int(value)
+
+
+def parse_metric_float(value: str | None, default: float = float("nan")) -> float:
+    if value is None or str(value).strip() == "":
+        return default
+    return float(value)
+
+
 def row_from_dict(item: dict[str, str]) -> PlanBSweepRow:
     return PlanBSweepRow(
         case_id=item["case_id"],
@@ -181,28 +198,28 @@ def row_from_dict(item: dict[str, str]) -> PlanBSweepRow:
         reference_delay_samples=float(item["reference_delay_samples"]),
         coeff_total_bits=int(item["coeff_total_bits"]),
         coeff_frac_bits=int(item["coeff_frac_bits"]),
-        saturation_count=int(item["saturation_count"]),
-        estimated_real_multiplier_count=int(float(item["estimated_real_multiplier_count"])),
-        fixed_total_magnitude_ripple_db=float(item["fixed_total_magnitude_ripple_db"]),
-        fixed_total_group_delay_ripple_pp_ns=float(item["fixed_total_group_delay_ripple_pp_ns"]),
-        fixed_phase_error_rms_rad=float(item["fixed_phase_error_rms_rad"]),
-        after_h1_evm_percent=float(item["after_h1_evm_percent"]),
-        after_plan_b_evm_percent=float(item["after_plan_b_evm_percent"]),
-        after_plan_b_fixed_evm_percent=float(item["after_plan_b_fixed_evm_percent"]),
-        after_h1_magnitude_only_evm_percent=float(item["after_h1_magnitude_only_evm_percent"]),
-        after_plan_b_magnitude_only_evm_percent=float(item["after_plan_b_magnitude_only_evm_percent"]),
-        after_plan_b_fixed_magnitude_only_evm_percent=float(item["after_plan_b_fixed_magnitude_only_evm_percent"]),
-        after_plan_b_fixed_fitted_delay_samples=float(item["after_plan_b_fixed_fitted_delay_samples"]),
-        after_h1_evm_lin_percent=float(item["after_h1_evm_lin_percent"]),
-        after_plan_b_evm_lin_percent=float(item["after_plan_b_evm_lin_percent"]),
-        after_plan_b_fixed_evm_lin_percent=float(item["after_plan_b_fixed_evm_lin_percent"]),
-        after_h1_evm_lin_magnitude_only_percent=float(item["after_h1_evm_lin_magnitude_only_percent"]),
-        after_plan_b_evm_lin_magnitude_only_percent=float(item["after_plan_b_evm_lin_magnitude_only_percent"]),
-        after_plan_b_fixed_evm_lin_magnitude_only_percent=float(item["after_plan_b_fixed_evm_lin_magnitude_only_percent"]),
-        after_h1_evm_lin_phase_only_percent=float(item["after_h1_evm_lin_phase_only_percent"]),
-        after_plan_b_evm_lin_phase_only_percent=float(item["after_plan_b_evm_lin_phase_only_percent"]),
-        after_plan_b_fixed_evm_lin_phase_only_percent=float(item["after_plan_b_fixed_evm_lin_phase_only_percent"]),
-        after_plan_b_fixed_evm_lin_fitted_delay_samples=float(item["after_plan_b_fixed_evm_lin_fitted_delay_samples"]),
+        saturation_count=parse_metric_int(item.get("saturation_count")),
+        estimated_real_multiplier_count=parse_metric_int(item.get("estimated_real_multiplier_count")),
+        fixed_total_magnitude_ripple_db=parse_metric_float(item.get("fixed_total_magnitude_ripple_db")),
+        fixed_total_group_delay_ripple_pp_ns=parse_metric_float(item.get("fixed_total_group_delay_ripple_pp_ns")),
+        fixed_phase_error_rms_rad=parse_metric_float(item.get("fixed_phase_error_rms_rad")),
+        after_h1_evm_percent=parse_metric_float(item.get("after_h1_evm_percent")),
+        after_plan_b_evm_percent=parse_metric_float(item.get("after_plan_b_evm_percent")),
+        after_plan_b_fixed_evm_percent=parse_metric_float(item.get("after_plan_b_fixed_evm_percent")),
+        after_h1_magnitude_only_evm_percent=parse_metric_float(item.get("after_h1_magnitude_only_evm_percent")),
+        after_plan_b_magnitude_only_evm_percent=parse_metric_float(item.get("after_plan_b_magnitude_only_evm_percent")),
+        after_plan_b_fixed_magnitude_only_evm_percent=parse_metric_float(item.get("after_plan_b_fixed_magnitude_only_evm_percent")),
+        after_plan_b_fixed_fitted_delay_samples=parse_metric_float(item.get("after_plan_b_fixed_fitted_delay_samples")),
+        after_h1_evm_lin_percent=parse_metric_float(item.get("after_h1_evm_lin_percent")),
+        after_plan_b_evm_lin_percent=parse_metric_float(item.get("after_plan_b_evm_lin_percent")),
+        after_plan_b_fixed_evm_lin_percent=parse_metric_float(item.get("after_plan_b_fixed_evm_lin_percent")),
+        after_h1_evm_lin_magnitude_only_percent=parse_metric_float(item.get("after_h1_evm_lin_magnitude_only_percent")),
+        after_plan_b_evm_lin_magnitude_only_percent=parse_metric_float(item.get("after_plan_b_evm_lin_magnitude_only_percent")),
+        after_plan_b_fixed_evm_lin_magnitude_only_percent=parse_metric_float(item.get("after_plan_b_fixed_evm_lin_magnitude_only_percent")),
+        after_h1_evm_lin_phase_only_percent=parse_metric_float(item.get("after_h1_evm_lin_phase_only_percent")),
+        after_plan_b_evm_lin_phase_only_percent=parse_metric_float(item.get("after_plan_b_evm_lin_phase_only_percent")),
+        after_plan_b_fixed_evm_lin_phase_only_percent=parse_metric_float(item.get("after_plan_b_fixed_evm_lin_phase_only_percent")),
+        after_plan_b_fixed_evm_lin_fitted_delay_samples=parse_metric_float(item.get("after_plan_b_fixed_evm_lin_fitted_delay_samples")),
         data_dir=item["data_dir"],
         graph_dir=item["graph_dir"],
     )
@@ -541,6 +558,44 @@ def plot_saturation_by_format(rows: list[PlanBSweepRow], output_path: Path) -> N
     fig.tight_layout()
     fig.savefig(output_path, dpi=160)
     plt.close(fig)
+
+
+def write_failure_report(rows: list[PlanBSweepRow], output_md: Path, summary_csv: Path) -> None:
+    error_messages: dict[str, int] = defaultdict(int)
+    for row in rows:
+        error_messages[row.error or "(empty error message)"] += 1
+
+    lines = [
+        "# Plan B Sweep Analysis",
+        "",
+        "## Summary",
+        "",
+        f"- Source CSV: `{summary_csv}`",
+        f"- Total cases: `{len(rows)}`",
+        "- Successful cases: `0`",
+        "",
+        "All sweep cases failed before metrics were produced. No ranking plots or best-case tables were generated.",
+        "",
+        "## Error Breakdown",
+        "",
+    ]
+    for message, count in sorted(error_messages.items(), key=lambda item: (-item[1], item[0])):
+        lines.append(f"- `{count}` case(s): {message}")
+    lines.extend(
+        [
+            "",
+            "## Failed Cases",
+            "",
+            "| case_id | seed_case | tap_num | regularization | fixed_format | error |",
+            "|---|---|---:|---:|---|---|",
+        ]
+    )
+    for row in rows:
+        lines.append(
+            f"| {row.case_id} | {row.seed_case} | {row.tap_num} | {row.regularization:.6g} | "
+            f"{row.fixed_format} | {row.error} |"
+        )
+    output_md.write_text("\n".join(lines), encoding="utf-8")
 
 
 def write_report(

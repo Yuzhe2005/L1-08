@@ -26,7 +26,7 @@
     "save_case_graphs": true
   },
   "design_sweep": {
-    "fs_hz": 12000000000.0,
+    "fs_hz": 24000000000.0,
     "tap_num": [192, 256, 320],
     "reference_delay_samples": [null],
     "regularization": [0.000001, 0.00001]

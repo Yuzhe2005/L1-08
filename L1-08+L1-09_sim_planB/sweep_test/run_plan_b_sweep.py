@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -35,7 +36,7 @@ from complex_fir_designer import (
     resolve_run_dir,
     run_plan_b_case,
 )
-from shared_sim.config import get_active_config_value, get_input_config_value, plan_b_value
+from shared_sim.config import get_active_config_value, get_common_config_value, get_input_config_value, plan_b_value
 from shared_sim.io_utils import PLAN_B_RUN_NAME_PREFIX, find_latest_h1_run, h1_data_dir
 from shared_sim.qam_utils import QamEvmConfig
 from shared_sim.run_summary import update_run_summary
@@ -48,6 +49,100 @@ from plan_b_qam_evm_validator import PlanBCoefficients, run_plan_b_qam_evm_valid
 
 
 STAGE_NAME = "plan_b_qam_sweep"
+
+
+@dataclass(frozen=True)
+class MemberValidationSettings:
+    fs_hz: float
+    samples: int
+    freq_min_hz: float
+    freq_max_hz: float
+    qam_order: int
+    peak_amplitude: float
+    seed: int
+    max_constellation_points: int
+
+    def as_qam_config(self) -> QamEvmConfig:
+        return QamEvmConfig(
+            fs_hz=self.fs_hz,
+            samples=self.samples,
+            freq_min_hz=self.freq_min_hz,
+            freq_max_hz=self.freq_max_hz,
+            qam_order=self.qam_order,
+            peak_amplitude=self.peak_amplitude,
+            seed=self.seed,
+            max_constellation_points=self.max_constellation_points,
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "fs_hz": self.fs_hz,
+            "samples": self.samples,
+            "freq_min_hz": self.freq_min_hz,
+            "freq_max_hz": self.freq_max_hz,
+            "qam_order": self.qam_order,
+            "peak_amplitude": self.peak_amplitude,
+            "seed": self.seed,
+            "max_constellation_points": self.max_constellation_points,
+        }
+
+
+def resolve_member_validation_settings(
+    profile: str | None,
+    qam_seed: int,
+    args: argparse.Namespace,
+) -> MemberValidationSettings:
+    fs_hz = float(get_common_config_value("fs_hz", args.fs_hz, profile_name=profile))
+    return MemberValidationSettings(
+        fs_hz=fs_hz,
+        samples=int(
+            get_input_config_value("qam_evm", "samples", args.samples, profile_name=profile)
+        ),
+        freq_min_hz=float(
+            get_input_config_value(
+                "qam_evm",
+                "freq_min_hz",
+                get_active_config_value(
+                    "behavior",
+                    "tone_min_hz",
+                    args.freq_min_hz,
+                    profile_name=profile,
+                ),
+                profile_name=profile,
+            )
+        ),
+        freq_max_hz=float(
+            get_input_config_value(
+                "qam_evm",
+                "freq_max_hz",
+                get_active_config_value(
+                    "behavior",
+                    "tone_max_hz",
+                    args.freq_max_hz,
+                    profile_name=profile,
+                ),
+                profile_name=profile,
+            )
+        ),
+        qam_order=int(get_input_config_value("qam_evm", "qam_order", args.qam_order, profile_name=profile)),
+        peak_amplitude=float(
+            get_input_config_value(
+                "qam_evm",
+                "peak_amplitude",
+                args.peak_amplitude,
+                profile_name=profile,
+            )
+        ),
+        seed=qam_seed,
+        max_constellation_points=int(
+            get_input_config_value(
+                "qam_evm",
+                "max_constellation_points",
+                args.max_constellation_points,
+                profile_name=profile,
+            )
+        ),
+    )
 
 
 def sweep_env() -> dict[str, str]:
@@ -331,7 +426,7 @@ def run_single_case(
     h1: Any,
     output_dir: Path,
     member_fields: dict[str, Any],
-    qam_seed: int,
+    validation: MemberValidationSettings,
     save_design_graphs: bool,
 ) -> dict[str, Any]:
     case_dir = output_dir / this_case_id
@@ -340,9 +435,10 @@ def run_single_case(
     case_logs_dir = case_dir / "logs"
     case_logs_dir.mkdir(parents=True, exist_ok=True)
     h1_csv = default_h1_csv(run_dir)
+    effective_case = {**case, "case_id": this_case_id, "fs_hz": validation.fs_hz}
     write_case_metadata_json(
         output_json=case_dir / "combo_metadata.json",
-        case={**case, "case_id": this_case_id},
+        case=effective_case,
         run_dir=run_dir,
         h1_csv=h1_csv,
         case_dir=case_dir,
@@ -366,7 +462,7 @@ def run_single_case(
             h1=h1,
             output_dir=case_data_dir,
             graph_dir=case_graph_dir,
-            fs_hz=float(case["fs_hz"]),
+            fs_hz=validation.fs_hz,
             tap_num=int(case["tap_num"]),
             regularization=float(case["regularization"]),
             reference_delay_samples=float(case["reference_delay_samples"]),
@@ -381,16 +477,7 @@ def run_single_case(
             coefficients=design_result.design.coefficients,
             fixed_coefficients=design_result.quantized.coefficients_fixed,
         )
-        config = QamEvmConfig(
-            fs_hz=float(case["fs_hz"]),
-            samples=args.samples,
-            freq_min_hz=args.freq_min_hz,
-            freq_max_hz=args.freq_max_hz,
-            qam_order=args.qam_order,
-            peak_amplitude=args.peak_amplitude,
-            seed=qam_seed,
-            max_constellation_points=args.max_constellation_points,
-        )
+        config = validation.as_qam_config()
         qam_result = run_plan_b_qam_evm_validation(
             run_dir=run_dir,
             coefficients=coefficients,
@@ -403,13 +490,13 @@ def run_single_case(
             run_dir=run_dir,
             output_dir=case_data_dir,
             graph_dir=case_graph_dir,
-            fs_hz=float(case["fs_hz"]),
+            fs_hz=validation.fs_hz,
             full_freq_hz=h1.freq_hz,
             h1_response=h1.complex_response,
             plan_b_total_response=design_result.design.total_response,
             plan_b_fixed_total_response=design_result.quantized.total_response,
-            freq_min_hz=args.freq_min_hz,
-            freq_max_hz=args.freq_max_hz,
+            freq_min_hz=validation.freq_min_hz,
+            freq_max_hz=validation.freq_max_hz,
             coefficients_csv=design_result.paths["coefficients_csv"],
             fixed_coefficients_csv=design_result.paths["fixed_coefficients_csv"],
         )
@@ -508,6 +595,7 @@ def main() -> None:
     all_case_entries: list[dict[str, Any]] = []
     rows: list[dict[str, Any]] = []
     last_run_dir: Path | None = None
+    validation_by_profile: dict[str | None, MemberValidationSettings] = {}
     total_cases = len(ensemble_members) * len(design_cases)
     case_index = 0
 
@@ -523,11 +611,22 @@ def main() -> None:
         qam_seed = int(seed_case["qam_seed"]) if seed_case else args.seed
         prefix = member_prefix(profile, seed_case)
         member_fields = member_row_fields(profile, seed_case, qam_seed)
+        validation = resolve_member_validation_settings(profile, qam_seed, args)
+        validation_by_profile[profile] = validation
 
         for case in design_cases:
             case_index += 1
             this_case_id = prefix + str(case["case_id"])
-            all_case_entries.append({**case, "case_id": this_case_id, **member_fields, "run_dir": str(run_dir)})
+            all_case_entries.append(
+                {
+                    **case,
+                    "case_id": this_case_id,
+                    **member_fields,
+                    "run_dir": str(run_dir),
+                    "fs_hz": validation.fs_hz,
+                    "validation": validation.as_dict(),
+                }
+            )
             print(f"[{case_index}/{total_cases}] {this_case_id}", flush=True)
             row = run_single_case(
                 args=args,
@@ -537,7 +636,7 @@ def main() -> None:
                 h1=h1,
                 output_dir=output_dir,
                 member_fields=member_fields,
-                qam_seed=qam_seed,
+                validation=validation,
                 save_design_graphs=save_design_graphs,
             )
             rows.append(row)
@@ -559,14 +658,9 @@ def main() -> None:
                 "graph": "graph",
                 "logs": "logs",
             },
-            "qam_config": {
-                "samples": args.samples,
-                "freq_min_hz": args.freq_min_hz,
-                "freq_max_hz": args.freq_max_hz,
-                "qam_order": args.qam_order,
-                "peak_amplitude": args.peak_amplitude,
-                "seed": args.seed,
-                "max_constellation_points": args.max_constellation_points,
+            "qam_config_by_profile": {
+                (profile or "active"): settings.as_dict()
+                for profile, settings in validation_by_profile.items()
             },
             "sweep_config": config_payload,
             "save_design_graphs": save_design_graphs,

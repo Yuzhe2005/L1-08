@@ -130,7 +130,8 @@ def load_summary(summary_csv: Path) -> list[SweepRow]:
             "h1_seed",
             "behavior_seed",
             "qam_seed",
-        }
+            "allpass_sections",
+        } | {"l1_09_allpass_sections"}
         if not reader.fieldnames or not required.issubset(reader.fieldnames):
             missing = sorted(required - set(reader.fieldnames or []))
             raise ValueError(f"{summary_csv} is missing columns: {missing}")
